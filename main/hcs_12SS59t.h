@@ -8,6 +8,9 @@
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
 
+#include "display.h"
+#include "util.h"
+
 #define HCS_12SS59T_DCRAM_WR	0x10
 #define HCS_12SS59T_CGRAM_WR	0x20
 #define HCS_12SS59T_ADRAM_WR	0x30
@@ -25,13 +28,14 @@
 struct hcs_12SS59t {
 	gpio_num_t gpio_reset;
 	spi_device_handle_t spi_dev;
+
+	struct display disp;
 };
 
-esp_err_t hcs_alloc(struct hcs_12SS59t** retval, spi_host_device_t spi_phy, gpio_num_t gpio_cs, gpio_num_t gpio_reset);
-void hcs_free(struct hcs_12SS59t* hcs);
+#define DISP_TO_HCS(_disp) (container_of((_disp), struct hcs_12SS59t, disp))
 
-esp_err_t hcs_display(struct hcs_12SS59t* hcs, char* str, size_t len);
-esp_err_t hcs_set_brightness(struct hcs_12SS59t* hcs, uint8_t brightness);
 
+esp_err_t hcs_alloc(struct display** retval, spi_host_device_t spi_phy, gpio_num_t gpio_cs, gpio_num_t gpio_reset);
+void hcs_free(struct display* disp);
 
 #endif

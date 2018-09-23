@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "hcs_12SS59t.h"
 #include "units.h"
@@ -68,11 +69,60 @@ static void hcs_xlate_str(uint8_t* dst, char* src, size_t len) {
 	}
 }
 
-esp_err_t hcs_set_brightness(struct hcs_12SS59t* hcs, uint8_t brightness) {
-	return hcs_cmd(hcs, HCS_12SS59T_DUTY, brightness);
+esp_err_t hcs_set_brightness(struct display* disp, unsigned brightness) {
+	return hcs_cmd(DISP_TO_HCS(disp), HCS_12SS59T_DUTY, (uint8_t)brightness);
 }
 
-esp_err_t hcs_alloc(struct hcs_12SS59t** retval, spi_host_device_t spi_phy, gpio_num_t gpio_cs, gpio_num_t gpio_reset) {
+esp_err_t hcs_blank(struct display* disp, bool blank) {
+	return hcs_cmd(DISP_TO_HCS(disp), HCS_12SS59T_LIGHT, blank ? HCS_12SS59T_LIGHT_OFF : HCS_12SS59T_LIGHT_NORM);
+}
+
+esp_err_t hcs_display_bin(struct display* disp, char* str, size_t len) {
+	struct hcs_12SS59t* hcs = DISP_TO_HCS(disp);
+	uint8_t data[HCS_12SS59T_NUM_CHARS];
+	uint8_t* data_ptr = data;
+	ssize_t diff = HCS_12SS59T_NUM_CHARS - len;
+
+	memset(data, hcs_xlate_char(' '), HCS_12SS59T_NUM_CHARS);
+	len = min(len, HCS_12SS59T_NUM_CHARS);
+	hcs_xlate_str(data_ptr, str, len);
+
+	if(diff > 0) {
+		data_ptr += diff;
+	}
+
+	ARRAY_REVERSE(data, sizeof(data));
+	return hcs_cmd_data(hcs, HCS_12SS59T_DCRAM_WR, 0, data, sizeof(data));
+}
+
+esp_err_t hcs_display(struct display* disp, char* str) {
+	return hcs_display_bin(disp, str, strlen(str));
+}
+
+esp_err_t hcs_get_display_width(struct display* disp, size_t* width) {
+	(void)disp;
+	*width = HCS_12SS59T_NUM_CHARS;
+	return ESP_OK;
+}
+
+void hcs_free(struct display* disp) {
+	struct hcs_12SS59t* hcs = DISP_TO_HCS(disp);
+	spi_bus_remove_device(hcs->spi_dev);
+	free(hcs);
+}
+
+const struct display_ops hcs_ops = {
+	.blank = hcs_blank,
+	.set_brightness = hcs_set_brightness,
+};
+
+const struct display_ops_text hcs_text_ops = {
+	.get_width = hcs_get_display_width,
+	.display = hcs_display,
+	.display_bin = hcs_display_bin,
+};
+
+esp_err_t hcs_alloc(struct display** retval, spi_host_device_t spi_phy, gpio_num_t gpio_cs, gpio_num_t gpio_reset) {
 	esp_err_t err;
 	gpio_config_t gpio_conf;
 	spi_device_interface_config_t spi_conf;
@@ -86,6 +136,10 @@ esp_err_t hcs_alloc(struct hcs_12SS59t** retval, spi_host_device_t spi_phy, gpio
 	memset(hcs, 0, sizeof(*hcs));
 	memset(&spi_conf, 0, sizeof(spi_conf));
 	memset(&gpio_conf, 0, sizeof(gpio_config_t));
+
+	hcs->disp.capabilities = DISPLAY_CAP_TEXT;
+	hcs->disp.ops = hcs_ops;
+	hcs->disp.text_ops = hcs_text_ops;
 
 	gpio_conf.intr_type = GPIO_PIN_INTR_DISABLE;
 	gpio_conf.mode = GPIO_MODE_OUTPUT;
@@ -114,14 +168,14 @@ esp_err_t hcs_alloc(struct hcs_12SS59t** retval, spi_host_device_t spi_phy, gpio
 	if((err = hcs_cmd(hcs, HCS_12SS59T_NUMDIGIT, HCS_12SS59T_NUM_CHARS))) {
 		goto fail_spi;
 	}
-	if((err = hcs_set_brightness(hcs, 15))) {
+	if((err = hcs_set_brightness(&hcs->disp, 15))) {
 		goto fail_spi;
 	}
-	if((hcs_cmd(hcs, HCS_12SS59T_LIGHT, HCS_12SS59T_LIGHT_NORM))) {
+	if((hcs_blank(&hcs->disp, false))) {
 		goto fail_spi;
 	}
 
-	*retval = hcs;
+	*retval = &hcs->disp;
 	return ESP_OK;
 
 fail_spi:
@@ -130,47 +184,4 @@ fail_alloc:
 	free(hcs);
 fail:
 	return err;
-}
-
-void hcs_free(struct hcs_12SS59t* hcs) {
-	spi_bus_remove_device(hcs->spi_dev);
-	free(hcs);
-}
-
-#ifndef min
-#define min(x, y) (((x) < (y)) ? (x) : (y))
-#endif
-
-#ifndef swp
-#define swp(_a, _b) \
-	do { \
-		typeof((_a)) tmp = (_a); \
-		(_a) = (_b); \
-		(_b) = tmp; \
-	} while(0)
-#endif
-
-#define ARRAY_REVERSE(_arr, _len) \
-	do { \
-		typeof((_len)) i; \
-		for(i = 0; i < _len / 2; i++) swp(((_arr)[i]), ((_arr)[_len - i - 1])); \
-	} while(0)
-
-						
-
-esp_err_t hcs_display(struct hcs_12SS59t* hcs, char* str, size_t len) {
-	uint8_t data[HCS_12SS59T_NUM_CHARS];
-	uint8_t* data_ptr = data;
-	ssize_t diff = HCS_12SS59T_NUM_CHARS - len;
-
-	memset(data, hcs_xlate_char(' '), HCS_12SS59T_NUM_CHARS);
-	len = min(len, HCS_12SS59T_NUM_CHARS);
-	hcs_xlate_str(data_ptr, str, len);
-
-	if(diff > 0) {
-		data_ptr += diff;
-	}
-
-	ARRAY_REVERSE(data, sizeof(data));
-	return hcs_cmd_data(hcs, HCS_12SS59T_DCRAM_WR, 0, data, sizeof(data));
 }

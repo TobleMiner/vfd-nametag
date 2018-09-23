@@ -1,11 +1,3 @@
-/* Hello World Example
-
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
-
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
-*/
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -42,15 +34,15 @@ void app_main()
 	ESP_ERROR_CHECK(err);
 	printf("SPI initialized\n");
 
-	struct hcs_12SS59t* hcs;
+	struct display* disp;
 
 	printf("Initializing VFD...\n");
-	err = hcs_alloc(&hcs, HSPI_HOST, PIN_NUM_CS, PIN_NUM_RST);
+	err = hcs_alloc(&disp, HSPI_HOST, PIN_NUM_CS, PIN_NUM_RST);
 	printf("VFD init finish, %d\n", err);
 	ESP_ERROR_CHECK(err);
 	printf("VFD initialized\n");
 
-	err = hcs_display(hcs, "Hi", 2);
+	err = display_text_display(disp, "Hello_World");
 	ESP_ERROR_CHECK(err);
 
 	uint8_t brightness = 1;
@@ -67,6 +59,6 @@ void app_main()
 				direction = 1;
 			}
 		}
-		hcs_set_brightness(hcs, brightness);
+		display_set_brightness(disp, brightness);
 	}
 }
