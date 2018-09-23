@@ -5,6 +5,8 @@
 #include "esp_spi_flash.h"
 
 #include "hcs_12SS59t.h"
+#include "menu.h"
+#include "encoder.h"
 
 #define PIN_NUM_MISO 25
 #define PIN_NUM_MOSI 23
@@ -12,6 +14,66 @@
 #define PIN_NUM_CS   22
 
 #define PIN_NUM_RST  18
+
+struct menu menu_entries_0[] = {
+	{
+		.name = "menu00"
+	},
+	{
+		.name = "menu01"
+	},
+	{
+		.name = "menu02"
+	},
+	{ },
+};
+
+struct menu menu_entries_1[] = {
+	{
+		.name = "menu10"
+	},
+	{
+		.name = "menu11"
+	},
+	{
+		.name = "menu12"
+	},
+	{ },
+};
+
+struct menu menu_entries_2[] = {
+	{
+		.name = "menu20"
+	},
+	{
+		.name = "menu21"
+	},
+	{
+		.name = "menu22"
+	},
+	{ },
+};
+
+struct menu menu_entries_main[] = {
+	{
+		.name = "menu0",
+		.entries = menu_entries_0,
+	},
+	{
+		.name = "menu1",
+		.entries = menu_entries_1,
+	},
+	{
+		.name = "menu2",
+		.entries = menu_entries_2,
+	},
+	{ },
+};
+
+struct menu main_menu = {
+	.name = NULL,
+	.entries = menu_entries_main,
+};
 
 void app_main()
 {
@@ -45,6 +107,15 @@ void app_main()
 	err = display_text_display(disp, "Hello_World");
 	ESP_ERROR_CHECK(err);
 
+	struct menu_state state;
+	menu_init(&main_menu, &state);
+
+	struct encoder* enc;
+	err = encoder_start_event_task();
+	ESP_ERROR_CHECK(err);
+	err = encoder_alloc(&enc, 12, 13);
+	ESP_ERROR_CHECK(err);
+
 	uint8_t brightness = 1;
 	uint8_t direction = 0;
 
@@ -53,6 +124,7 @@ void app_main()
 		if(direction) {
 			if(brightness-- <= 1) {
 				direction = 0;
+				
 			}
 		} else {
 			if(brightness++ >= 14) {
@@ -60,5 +132,7 @@ void app_main()
 			}
 		}
 		display_set_brightness(disp, brightness);
+
+//		vTaskDelay(500 / portTICK_PERIOD_MS);
 	}
 }

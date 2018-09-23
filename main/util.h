@@ -22,5 +22,4 @@
 	} while(0)
 
 						
-
-
+#define ARRAY_LEN(_arr) (sizeof((_arr)) / sizeof(*(_arr)))
