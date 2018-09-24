@@ -1,6 +1,7 @@
 #include "menu.h"
 
 #define menu_entry_is_delimiter(entry) (!((entry)->name || (entry)->entries || (entry)->select))
+#define menu_entry_is_last_child(entry) (menu_entry_is_delimiter(entry + 1))
 #define menu_entry_is_first_child(entry) ((entry) == &(entry)->parent->entries[0])
 
 esp_err_t menu_init(struct menu* menu, struct menu_state* state) {
@@ -51,14 +52,16 @@ esp_err_t menu_ascend(struct menu_state* state) {
 esp_err_t menu_next(struct menu_state* state) {
 	state->current_entry++;
 	if(menu_entry_is_delimiter(state->current_entry)) {
-		state->current_entry = &state->current_entry->parent->entries[0];
+		state->current_entry = &(state->current_entry - 1)->parent->entries[0];
 	}
 	return ESP_OK;
 }
 
 esp_err_t menu_prev(struct menu_state* state) {
 	if(menu_entry_is_first_child(state->current_entry)) {
-		while(!menu_entry_is_delimiter(++state->current_entry));
+		while(!menu_entry_is_delimiter(state->current_entry)) {
+			state->current_entry++;
+		}
 	}
 	state->current_entry--;
 	return ESP_OK;
