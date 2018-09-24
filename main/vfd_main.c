@@ -8,6 +8,7 @@
 #include "menu.h"
 #include "userio.h"
 #include "encoder.h"
+#include "button.h"
 
 #define PIN_NUM_MISO 25
 #define PIN_NUM_MOSI 23
@@ -97,6 +98,12 @@ void userio_event_loop(void* arg) {
 				case USERIO_ACTION_PREV:
 					menu_prev(state);
 					break;
+				case USERIO_ACTION_SELECT:
+					menu_descend(state);
+					break;
+				case USERIO_ACTION_BACK:
+					menu_ascend(state);
+					break;
 			}
 		}
 	}
@@ -143,6 +150,14 @@ void app_main()
 
 	struct encoder* enc;
 	err = encoder_alloc(&enc, userio, 12, 13);
+	ESP_ERROR_CHECK(err);
+
+	struct button_gpio* button_ok;
+	err = button_gpio_alloc(&button_ok, userio, 14, USERIO_ACTION_SELECT);
+	ESP_ERROR_CHECK(err);
+
+	struct button_gpio* button_back;
+	err = button_gpio_alloc(&button_back, userio, 27, USERIO_ACTION_BACK);
 	ESP_ERROR_CHECK(err);
 
 	struct event_queue_data eq_data;
