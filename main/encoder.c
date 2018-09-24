@@ -15,14 +15,14 @@ int8_t encoder_dt_lookup[16] = {
 	0 /* 0b0001 */,	
 	0 /* 0b0010 */,	
 	0 /* 0b0011 */,	
-	-1 /* 0b0100 */,	
+	1 /* 0b0100 */,	
 	0 /* 0b0101 */,	
 	0 /* 0b0110 */,	
-	1 /* 0b0111 */,	
-	-1 /* 0b1000 */,	
+	-1 /* 0b0111 */,	
+	1 /* 0b1000 */,	
 	0 /* 0b1001 */,	
 	0 /* 0b1010 */,	
-	1 /* 0b1011 */,	
+	-1 /* 0b1011 */,	
 	0 /* 0b1100 */,	
 	0 /* 0b1101 */,	
 	0 /* 0b1110 */,	
@@ -69,6 +69,7 @@ esp_err_t encoder_alloc(struct encoder** retval, struct userio* userio, gpio_num
 	gpio_conf.pin_bit_mask = (1ULL<<phase_a) | (1ULL<<phase_b);
 	gpio_conf.mode = GPIO_MODE_INPUT;
 	gpio_conf.pull_up_en = 1;
+	gpio_conf.pull_down_en = 0;
 	gpio_config(&gpio_conf);
 
 	gpio_install_isr_service(0);
