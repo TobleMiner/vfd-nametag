@@ -24,7 +24,7 @@ struct menu_state {
 
 #define menu_current_entry(state) ((state)->current_entry)
 #define menu_entry_name(entry) ((entry)->name)
-#define menu_current_name(entry) (menu_entry_name(menu_current_entry(entry)))
+#define menu_current_name(state) (menu_entry_name(menu_current_entry(state)))
 #define menu_can_descend(state) (!!(state)->current_entry->entries)
 #define menu_can_ascend(state) (!!(state)->current_entry->parent->name)
 
