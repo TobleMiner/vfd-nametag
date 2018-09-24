@@ -6,6 +6,7 @@
 
 #include "hcs_12SS59t.h"
 #include "menu.h"
+#include "userio.h"
 #include "encoder.h"
 
 #define PIN_NUM_MISO 25
@@ -75,6 +76,32 @@ struct menu main_menu = {
 	.entries = menu_entries_main,
 };
 
+
+struct event_queue_data {
+	struct userio* userio;
+	struct menu_state* state;
+};
+
+void userio_event_loop(void* arg) {
+	struct event_queue_data* eq_data = arg;
+	struct userio* userio = eq_data->userio;
+	struct menu_state* state = eq_data->state;
+	userio_action action;
+
+	while(1) {
+		if(userio_wait_event(userio, &action)) {
+			switch(action) {
+				case USERIO_ACTION_NEXT:
+					menu_next(state);
+					break;
+				case USERIO_ACTION_PREV:
+					menu_prev(state);
+					break;
+			}
+		}
+	}
+}
+
 void app_main()
 {
 	esp_err_t err;
@@ -110,11 +137,19 @@ void app_main()
 	struct menu_state state;
 	menu_init(&main_menu, &state);
 
+	struct userio* userio;
+	err = userio_alloc(&userio);
+	ESP_ERROR_CHECK(err);
+
 	struct encoder* enc;
-	err = encoder_start_event_task();
+	err = encoder_alloc(&enc, userio, 12, 13);
 	ESP_ERROR_CHECK(err);
-	err = encoder_alloc(&enc, 12, 13);
-	ESP_ERROR_CHECK(err);
+
+	struct event_queue_data eq_data;
+	eq_data.userio = userio;
+	eq_data.state = &state;
+
+	xTaskCreate(userio_event_loop, "userio_event_loop", 2048, &eq_data, 10, NULL);
 
 	uint8_t brightness = 1;
 	uint8_t direction = 0;
@@ -122,7 +157,7 @@ void app_main()
 	while(1) {
 		vTaskDelay(60 / portTICK_PERIOD_MS);
 		if(direction) {
-			if(brightness-- <= 1) {
+				if(brightness-- <= 1) {
 				direction = 0;
 				
 			}
@@ -131,6 +166,7 @@ void app_main()
 				direction = 1;
 			}
 		}
+		display_text_display(disp, menu_current_name(&state));
 		display_set_brightness(disp, brightness);
 
 //		vTaskDelay(500 / portTICK_PERIOD_MS);

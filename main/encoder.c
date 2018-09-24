@@ -10,17 +10,29 @@
 
 #include "encoder.h"
 
-struct rotate_event {
-	struct encoder* enc;
-	uint8_t statevec;
+int8_t encoder_dt_lookup[16] = {
+	0 /* 0b0000 */,
+	0 /* 0b0001 */,	
+	0 /* 0b0010 */,	
+	0 /* 0b0011 */,	
+	-1 /* 0b0100 */,	
+	0 /* 0b0101 */,	
+	0 /* 0b0110 */,	
+	1 /* 0b0111 */,	
+	-1 /* 0b1000 */,	
+	0 /* 0b1001 */,	
+	0 /* 0b1010 */,	
+	1 /* 0b1011 */,	
+	0 /* 0b1100 */,	
+	0 /* 0b1101 */,	
+	0 /* 0b1110 */,	
+	0 /* 0b1111 */,	
 };
 
-xQueueHandle encoder_statequeue;
-TaskHandle_t encoder_event_task;
-
 static void IRAM_ATTR encoder_gpio_isr(void* priv) {
-	struct rotate_event event;
+	int8_t dt_turnon, dt_turnoff;
 	struct encoder* enc = (struct encoder*)priv;
+
 	enc->statevec = (enc->statevec << 2) & 0xFF;
 	if(gpio_get_level(enc->phase_a)) {
 		enc->statevec |= 0b01;
@@ -28,42 +40,19 @@ static void IRAM_ATTR encoder_gpio_isr(void* priv) {
 	if(gpio_get_level(enc->phase_b)) {
 		enc->statevec |= 0b10;
 	}
-	event.enc = enc;
-	event.statevec = enc->statevec;
-	xQueueSendFromISR(encoder_statequeue, &event, NULL);
-}
 
-void encoder_event_loop(void* arg) {
-	struct rotate_event event;
-	while(1) {
-		if(xQueueReceive(encoder_statequeue, &event, portMAX_DELAY)) {
-			uint8_t data = event.statevec;
-			printf("Encoder bit pattern: 0b%d%d%d%d%d%d%d%d\n", !!(data & 0b10000000), !!(data & 0b01000000), !!(data & 0b00100000), !!(data & 0b00010000), !!(data & 0b00001000), !!(data & 0b00000100), !!(data & 0b00000010), !!(data & 0b00000001));
-		}
+	dt_turnon = encoder_dt_lookup[(enc->statevec >> 4) & 0x0F];
+	dt_turnoff = encoder_dt_lookup[enc->statevec & 0x0F];
+
+	if(dt_turnon == 0 && dt_turnoff == -1) {
+		userio_dispatch_event_isr(enc->userio, USERIO_ACTION_NEXT);
+	}
+	else if(dt_turnon == 1 && dt_turnoff == 0) {
+		userio_dispatch_event_isr(enc->userio, USERIO_ACTION_PREV);
 	}
 }
 
-esp_err_t encoder_start_event_task(void) {
-	esp_err_t err;
-	encoder_statequeue = xQueueCreate(ENCODER_STATE_QUEUE_LEN, sizeof(struct rotate_event));
-	if(!encoder_statequeue) {
-		err = ESP_ERR_NO_MEM;
-		goto fail_queue;
-	}
-	if(xTaskCreate(encoder_event_loop, "enc_event_loop", 2048, NULL, 10, &encoder_event_task) != pdPASS) {
-		err = ESP_FAIL;
-		goto fail_task;
-	}
-
-	return ESP_OK;
-
-fail_task:
-	vQueueDelete(encoder_statequeue);
-fail_queue:
-	return err;
-}
-
-esp_err_t encoder_alloc(struct encoder** retval, gpio_num_t phase_a, gpio_num_t phase_b) {
+esp_err_t encoder_alloc(struct encoder** retval, struct userio* userio, gpio_num_t phase_a, gpio_num_t phase_b) {
 	esp_err_t err;
 	gpio_config_t gpio_conf;
 	struct encoder* enc = calloc(1, sizeof(struct encoder));
@@ -74,6 +63,7 @@ esp_err_t encoder_alloc(struct encoder** retval, gpio_num_t phase_a, gpio_num_t 
 
 	enc->phase_a = phase_a;
 	enc->phase_b = phase_b;
+	enc->userio = userio;
 
 	gpio_conf.intr_type = GPIO_INTR_ANYEDGE;
 	gpio_conf.pin_bit_mask = (1ULL<<phase_a) | (1ULL<<phase_b);
