@@ -75,6 +75,8 @@ struct datastore {
 };
 
 
+#define datastore_store(ds, value, key, type) ((ds)->def->ops->store((ds), value, key, type))
+
 esp_err_t datastore_clone_value(void** retval, void* src, int datatype);
 esp_err_t datastore_init(struct datastore* ds, struct datastore_def* def, struct datastore_kvpair_default* defaults, size_t len);
 
