@@ -172,6 +172,36 @@ void app_main()
 
 	xTaskCreate(userio_event_loop, "userio_event_loop", 2048, &eq_data, 10, NULL);
 
+	printf("Allocating datastore...\n");
+	struct datastore* ds;
+	err = datastore_alloc(&ds, 0, NULL, 0);
+	ESP_ERROR_CHECK(err);
+	printf("Datastore allocated\n");
+
+	printf("Adding values to datastore...\n");
+	err = datastore_store(ds, "Hello World!", "test", DATATYPE_STRING);
+	ESP_ERROR_CHECK(err);
+
+	int32_t intval = 0x42424242;
+	err = datastore_store(ds, &intval, "test.int", DATATYPE_INT32);
+	ESP_ERROR_CHECK(err);
+	printf("Values added\n");
+
+	printf("Reading back values from datastore...\n");
+	char* strval = NULL;
+	int32_t* intvalp = NULL;
+
+	err = datastore_load(ds, (void**)&strval, "test", DATATYPE_STRING);
+	ESP_ERROR_CHECK(err);
+
+	printf("Read back key test as '%s'\n", strval ? strval : "NULL");
+
+	err = datastore_load(ds, (void**)&intvalp, "test.int", DATATYPE_INT32);
+	ESP_ERROR_CHECK(err);
+
+	printf("Read back key test.int as '%d'\n", intvalp ? *intvalp : 0);
+
+
 	uint8_t brightness = 1;
 	uint8_t direction = 0;
 
