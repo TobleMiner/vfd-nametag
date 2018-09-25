@@ -82,6 +82,20 @@ struct menu_entry main_menu = {
 	.entries = menu_entries_main,
 };
 
+/*
+struct datastore_kvpair_default datastore_mem_default_test = {
+
+};
+*/
+struct datastore_kvpair_default datastore_mem_defaults[] = {
+	{
+		.kvpair = {
+			.key = "default.test",
+			.value = "Default content",
+			.datatype = DATATYPE_STRING,
+		}
+	}
+};
 
 struct event_queue_data {
 	struct userio* userio;
@@ -174,7 +188,7 @@ void app_main()
 
 	printf("Allocating datastore...\n");
 	struct datastore* ds;
-	err = datastore_alloc(&ds, 0, NULL, 0);
+	err = datastore_alloc(&ds, 0, datastore_mem_defaults, ARRAY_LEN(datastore_mem_defaults));
 	ESP_ERROR_CHECK(err);
 	printf("Datastore allocated\n");
 
@@ -200,6 +214,11 @@ void app_main()
 	ESP_ERROR_CHECK(err);
 
 	printf("Read back key test.int as '%d'\n", intvalp ? *intvalp : 0);
+
+	err = datastore_load(ds, (void**)&strval, "default.test", DATATYPE_STRING);
+	ESP_ERROR_CHECK(err);
+
+	printf("Read back key default.test as '%s'\n", strval ? strval : "NULL");
 
 
 	uint8_t brightness = 1;
