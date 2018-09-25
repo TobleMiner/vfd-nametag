@@ -1,11 +1,27 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "util.h"
 #include "datastore.h"
+
+extern struct datastore_def datastore_mem;
 
 struct datastore_def datastore_defs[] = {
 	&datastore_mem
 };
+
+esp_err_t datastore_alloc(struct datastore** retval, datastore_flags flags, struct datastore_kvpair_default* defaults, size_t len) {
+	unsigned int i;
+	for(i = 0; i < ARRAY_LEN(datastore_defs); i++) {
+		struct datastore_def* def = &datastore_defs[i];
+		if(def->flags != flags) {
+			continue;
+		}
+		return def->ops->alloc(retval, defaults, len);
+	}
+
+	return ESP_ERR_NOT_SUPPORTED;
+}
 
 esp_err_t datastore_clone_value(void** retval, void* src, int datatype) {
 	esp_err_t err;
@@ -53,10 +69,6 @@ fail_value_alloc:
 	free(dst->value);
 fail:
 	return err;
-}
-
-void datastore_free_kvpair(struct datastore_kvpair* kvpair) {
-	free(kvpair);
 }
 
 esp_err_t datastore_init(struct datastore* ds, struct datastore_def* def, struct datastore_kvpair_default* defaults, size_t len) {
@@ -140,4 +152,3 @@ esp_err_t datastore_load(struct datastore* ds, void** value, char* key, int data
 
 	return datastore_load_default(ds, value, key, datatype);	
 }
-
