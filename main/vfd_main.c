@@ -85,13 +85,13 @@ struct menu_entry main_menu = {
 
 struct event_queue_data {
 	struct userio* userio;
-	struct menu_state* state;
+	struct menu* menu;
 };
 
 void userio_event_loop(void* arg) {
 	struct event_queue_data* eq_data = arg;
 	struct userio* userio = eq_data->userio;
-	struct menu_state* state = eq_data->state;
+	struct menu_state* state = &eq_data->menu->state;
 	userio_action action;
 
 	while(1) {
@@ -146,8 +146,9 @@ void app_main()
 	err = display_text_display(disp, "Hello_World");
 	ESP_ERROR_CHECK(err);
 
-	struct menu_state state;
-	menu_init(&main_menu, &state);
+	struct menu* menu;
+	err = menu_alloc(&menu, &main_menu, NULL);
+	ESP_ERROR_CHECK(err);
 
 	struct userio* userio;
 	err = userio_alloc(&userio);
@@ -167,7 +168,7 @@ void app_main()
 
 	struct event_queue_data eq_data;
 	eq_data.userio = userio;
-	eq_data.state = &state;
+	eq_data.menu = menu;
 
 	xTaskCreate(userio_event_loop, "userio_event_loop", 2048, &eq_data, 10, NULL);
 
@@ -186,7 +187,7 @@ void app_main()
 				direction = 1;
 			}
 		}
-		display_text_display(disp, menu_current_name(&state));
+		display_text_display(disp, menu_current_name(&menu->state));
 		display_set_brightness(disp, brightness);
 
 //		vTaskDelay(500 / portTICK_PERIOD_MS);

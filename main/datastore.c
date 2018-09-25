@@ -1,19 +1,22 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "esp_err.h"
+
 #include "util.h"
+#include "list.h"
 #include "datastore.h"
 
 extern struct datastore_def datastore_mem;
 
-struct datastore_def datastore_defs[] = {
+struct datastore_def* datastore_defs[] = {
 	&datastore_mem
 };
 
 esp_err_t datastore_alloc(struct datastore** retval, datastore_flags flags, struct datastore_kvpair_default* defaults, size_t len) {
 	unsigned int i;
 	for(i = 0; i < ARRAY_LEN(datastore_defs); i++) {
-		struct datastore_def* def = &datastore_defs[i];
+		struct datastore_def* def = datastore_defs[i];
 		if(def->flags != flags) {
 			continue;
 		}
@@ -26,10 +29,11 @@ esp_err_t datastore_alloc(struct datastore** retval, datastore_flags flags, stru
 esp_err_t datastore_clone_value(void** retval, void* src, int datatype) {
 	esp_err_t err;
 	void* dst;
+	ssize_t len;
 
 	len = datatype_get_size(datatype, src);
 	if(len < 0) {
-		err = ESP_ERR;
+		err = ESP_ERR_INVALID_ARG;
 		goto fail;
 	}
 	dst = calloc(1, len);
@@ -48,8 +52,6 @@ fail:
 
 esp_err_t datastore_copy_kvpair(struct datastore_kvpair* dst, struct datastore_kvpair* src) {
 	esp_err_t err;
-	char* key;
-	ssize_t len;
 
 	dst->datatype = src->datatype;
 
@@ -75,7 +77,7 @@ esp_err_t datastore_init(struct datastore* ds, struct datastore_def* def, struct
 	esp_err_t err;
 
 	ds->def = def;
-	LIST_HEAD_INIT(ds->cache);
+	INIT_LIST_HEAD(ds->cache);
 
 	ds->defaults = calloc(len, sizeof(struct datastore_kvpair_default));
 	if(!ds->defaults) {
@@ -86,7 +88,7 @@ esp_err_t datastore_init(struct datastore* ds, struct datastore_def* def, struct
 	for(ds->num_defaults = 0; ds->num_defaults < len; ds->num_defaults++) {
 		struct datastore_kvpair_default* src, *dst;
 		dst = &ds->defaults[ds->num_defaults];
-		src = defaults[ds->num_defaults];
+		src = &defaults[ds->num_defaults];
 
 		dst->priv = src->priv;
 		dst->default_cb = src->default_cb;
@@ -124,18 +126,18 @@ static esp_err_t datastore_load_default(struct datastore* ds, void** value, char
 	size_t i;
 
 	for(i = 0; i < ds->num_defaults; i++) {
-		struct datastore_kvpair_default* default = &ds->defaults[i];
-		if(strcmp(key, default->kvpair.key)) {
+		struct datastore_kvpair_default* def = &ds->defaults[i];
+		if(strcmp(key, def->kvpair.key)) {
 			continue;
 		}
-		if(default->kvpair.datatype != datatype) {
+		if(def->kvpair.datatype != datatype) {
 			return ESP_ERR_INVALID_STATE;
 		}
-		if(default->kvpair.value) {
-			return datastore_clone_value(value, default->kvpair.value, datatype);
+		if(def->kvpair.value) {
+			return datastore_clone_value(value, def->kvpair.value, datatype);
 		}
 
-		return default->default_cb(value, key, datatype, default->priv);
+		return def->default_cb(value, key, datatype, def->priv);
 	}
 
 	*value = NULL;
@@ -145,7 +147,7 @@ static esp_err_t datastore_load_default(struct datastore* ds, void** value, char
 esp_err_t datastore_load(struct datastore* ds, void** value, char* key, int datatype) {
 	esp_err_t err;
 
-	err = ds->ops->load(ds, value, key, datatype);
+	err = ds->def->ops->load(ds, value, key, datatype);
 	if(err || *value) {
 		return err;
 	}

@@ -1,8 +1,10 @@
 #ifndef _DATASTORE_H_
 #define _DATASTORE_H_
 
-#include "list.h"
+#include "esp_err.h"
+
 #include "datatypes.h"
+#include "list.h"
 
 struct datastore_kvpair {
 	char* key;
@@ -24,13 +26,13 @@ struct datastore_kvpair_default {
 struct datastore;
 
 struct datastore_ops {
-	esp_err_t alloc(struct datastore** retval, struct datastore_kvpair_default* defaults, size_t len);
-	void free(struct datastore* ds);
+	esp_err_t (*alloc)(struct datastore** retval, struct datastore_kvpair_default* defaults, size_t len);
+	void (*free)(struct datastore* ds);
 
 	/* Values loaded from a datastore are malloced and MUST be freed! */
-	esp_err_t load(struct datstore* ds, void** value, char* key, int datatype);
+	esp_err_t (*load)(struct datastore* ds, void** value, char* key, int datatype);
 	/* Supports only fixed length datatypes and NUL-terminated strings */
-	esp_err_t store(struct datstore* ds, void* value, char* key, int datatype);
+	esp_err_t (*store)(struct datastore* ds, void* value, char* key, int datatype);
 };
 
 /* Do not use any of the following ops from outside the internal datastore code! External use
@@ -38,14 +40,14 @@ struct datastore_ops {
  */
 struct datastore_priv_ops {
 	/* Check if value for key is available in storage backend */
-	esp_err_t _has_key(struct datastore* ds, char* key);
+	esp_err_t (*_has_key)(struct datastore* ds, char* key);
 };
 
-typedef uint8_t datstore_flags;
+typedef uint8_t datastore_flags;
 
 #define DATASTORE_FLAG_PERSISTENT 0b01;
 
-typedef uint8_t datstore_priv_flags;
+typedef uint8_t datastore_priv_flags;
 
 #define DATASTORE_FLAG_CACHED 0b01;
 
@@ -69,7 +71,7 @@ struct datastore {
 	struct list_head cache;
 
 	struct datastore_kvpair_default* defaults;
-	size_t len_defaults;
+	size_t num_defaults;
 };
 
 

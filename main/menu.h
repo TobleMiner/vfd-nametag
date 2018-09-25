@@ -16,6 +16,8 @@ enum {
 	_MENU_ENTRY_MAX
 };
 
+struct menu;
+
 struct menu_entry_data;
 
 struct menu_entry_data {
@@ -49,7 +51,7 @@ struct menu_entry {
 };
 
 struct menu_state {
-	struct menu* current_entry;
+	struct menu_entry* current_entry;
 };
 
 struct menu {
@@ -58,22 +60,13 @@ struct menu {
 	struct menu_state state;
 };
 
-inline char* menu_entry_name(struct menu_entry* entry) {
-	if(entry->name) {
-		return entry->name;
-	}
-	if(entry->name_cb) {
-		return entry->name_cb(entry, entry->name_cb_priv);
-	}
-	return NULL;
-}
-
+#define menu_entry_name(entry) (entry)->name
 #define menu_current_entry(state) ((state)->current_entry)
 #define menu_current_name(state) (menu_entry_name(menu_current_entry(state)))
 #define menu_can_descend(state) (!!(state)->current_entry->entries)
 #define menu_can_ascend(state) (!!(state)->current_entry->parent->name)
 
-esp_err_t menu_alloc(struct menu** retval, struct menu_entry* root, struct menu_state* state, struct datastore* store);
+esp_err_t menu_alloc(struct menu** retval, struct menu_entry* root, struct datastore* ds);
 esp_err_t menu_descend(struct menu_state* state);
 esp_err_t menu_ascend(struct menu_state* state);
 esp_err_t menu_next(struct menu_state* state);

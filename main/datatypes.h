@@ -1,6 +1,8 @@
 #ifndef _DATATYPES_H_
 #define _DATATYPES_H_
 
+#include <sys/types.h>
+
 enum {
 	DATATYPE_INT8,
 	DATATYPE_INT16,

@@ -12,10 +12,10 @@ void menu_render_string(struct menu_render* render, struct menu_state* state) {
 	printf("Render string\n");
 }
 
-struct menu_render menu_renders[] = {
+struct menu_entry_render menu_renders[] = {
 	{ },
 	{
-		.render = menu_render_on_off;
+		.render = menu_render_on_off,
 	}
 };
 

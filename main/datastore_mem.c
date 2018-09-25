@@ -1,8 +1,23 @@
 #include "datastore_mem.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #define DS_TO_DS_MEM(ds) container_of((ds), struct datastore_mem, ds)
 
-static esp_err_t datastore_mem_alloc(struct datastore** retval, struct datastore_kvpair_default* defaults, size_t len) {
+struct datastore_ops datastore_mem_ops = {
+	.alloc = datastore_mem_alloc,
+	.load = datastore_mem_load,
+	.store = datastore_mem_store,
+};
+
+struct datastore_def datastore_mem = {
+	.flags = 0,
+	.priv_flags = 0,
+	.ops = &datastore_mem_ops,
+};
+
+esp_err_t datastore_mem_alloc(struct datastore** retval, struct datastore_kvpair_default* defaults, size_t len) {
 	esp_err_t err;
 	struct datastore_mem* ds_mem = calloc(1, sizeof(struct datastore_mem));
 	if(!ds_mem) {
@@ -12,7 +27,7 @@ static esp_err_t datastore_mem_alloc(struct datastore** retval, struct datastore
 
 	INIT_LIST_HEAD(ds_mem->storage);
 
-	if((err = datastore_init(&ds_mem->ds, defaults, len))) {
+	if((err = datastore_init(&ds_mem->ds, &datastore_mem, defaults, len))) {
 		goto fail_alloc;
 	}
 
@@ -25,12 +40,12 @@ fail:
 	return err;
 }
 
-static esp_err_t datastore_mem_load(struct datastore* ds, void** value, char* key, int datatype) {
+esp_err_t datastore_mem_load(struct datastore* ds, void** value, char* key, int datatype) {
 	struct datastore_mem* ds_mem = DS_TO_DS_MEM(ds);
 	struct list_head* cursor;
 
 	LIST_FOR_EACH(cursor, &ds_mem->storage) {
-		struct datastore_mem_kvpair* mem_kvpair = LIST_ENTRY(cursor, struct datastore_mem_kvpair, list);
+		struct datastore_mem_kvpair* mem_kvpair = LIST_GET_ENTRY(cursor, struct datastore_mem_kvpair, list);
 		struct datastore_kvpair* kvpair = &mem_kvpair->kvpair;
 
 		if(strcmp(kvpair->key, key)) {
@@ -48,7 +63,7 @@ static esp_err_t datastore_mem_load(struct datastore* ds, void** value, char* ke
 	return ESP_OK;
 }
 
-static esp_err_t datastore_mem_store(struct datastore* ds, void* value, char* key, int datatype) {
+esp_err_t datastore_mem_store(struct datastore* ds, void* value, char* key, int datatype) {
 	esp_err_t err;
 	struct datastore_mem_kvpair* mem_kvpair;
 	struct datastore_kvpair* kvpair;
@@ -57,7 +72,7 @@ static esp_err_t datastore_mem_store(struct datastore* ds, void* value, char* ke
 
 	LIST_FOR_EACH(cursor, &ds_mem->storage) {
 		void* tmpptr;
-		mem_kvpair = LIST_ENTRY(cursor, struct datastore_mem_kvpair, list);
+		mem_kvpair = LIST_GET_ENTRY(cursor, struct datastore_mem_kvpair, list);
 		kvpair = &mem_kvpair->kvpair;
 
 		if(strcmp(kvpair->key, key)) {
@@ -110,15 +125,3 @@ fail_kvpair_alloc:
 fail:
 	return err;
 }
-
-struct datastore_ops datastore_mem_ops = {
-	.alloc = datastore_mem_alloc,
-	.load = datastore_mem_load,
-	.store = datastore_mem_store,
-};
-
-struct datastore_def datastore_mem = {
-	.flags = 0,
-	.priv_flags = 0,
-	.ops = &datastore_mem_ops,
-};

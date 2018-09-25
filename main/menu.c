@@ -1,10 +1,10 @@
 #include "menu.h"
 
-#define menu_entry_is_delimiter(entry) (!((entry)->name || (entry)->entries || (entry)->select))
+#define menu_entry_is_delimiter(entry) (!((entry)->name || (entry)->entries || (entry)->select_cb))
 #define menu_entry_is_last_child(entry) (menu_entry_is_delimiter(entry + 1))
 #define menu_entry_is_first_child(entry) ((entry) == &(entry)->parent->entries[0])
 
-esp_err_t menu_alloc(struct menu** retval, struct menu_entry* root, struct datastore) {
+esp_err_t menu_alloc(struct menu** retval, struct menu_entry* root, struct datastore* ds) {
 	esp_err_t err;
 	struct menu_entry* parent, *cursor;
 	struct menu* menu = calloc(1, sizeof(struct menu));
@@ -13,7 +13,7 @@ esp_err_t menu_alloc(struct menu** retval, struct menu_entry* root, struct datas
 		goto fail;
 	}
 
-	menu->datastore = datastore;
+	menu->datastore = ds;
 
 	if(root->name || !root->entries) {
 		// Not a toplevel menu
