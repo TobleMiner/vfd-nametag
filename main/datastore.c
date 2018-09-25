@@ -79,23 +79,27 @@ esp_err_t datastore_init(struct datastore* ds, struct datastore_def* def, struct
 	ds->def = def;
 	INIT_LIST_HEAD(ds->cache);
 
-	ds->defaults = calloc(len, sizeof(struct datastore_kvpair_default));
-	if(!ds->defaults) {
-		err = ESP_ERR_NO_MEM;
-		goto fail;
-	}
-
-	for(ds->num_defaults = 0; ds->num_defaults < len; ds->num_defaults++) {
-		struct datastore_kvpair_default* src, *dst;
-		dst = &ds->defaults[ds->num_defaults];
-		src = &defaults[ds->num_defaults];
-
-		dst->priv = src->priv;
-		dst->default_cb = src->default_cb;
-
-		if((err = datastore_copy_kvpair(&dst->kvpair, &src->kvpair))) {
-			goto fail_defaults;
+	if(len) {
+		ds->defaults = calloc(len, sizeof(struct datastore_kvpair_default));
+		if(!ds->defaults) {
+			err = ESP_ERR_NO_MEM;
+			goto fail;
 		}
+
+		for(ds->num_defaults = 0; ds->num_defaults < len; ds->num_defaults++) {
+			struct datastore_kvpair_default* src, *dst;
+			dst = &ds->defaults[ds->num_defaults];
+			src = &defaults[ds->num_defaults];
+
+			dst->priv = src->priv;
+			dst->default_cb = src->default_cb;
+
+			if((err = datastore_copy_kvpair(&dst->kvpair, &src->kvpair))) {
+				goto fail_defaults;
+			}
+		}
+	} else {
+		ds->num_defaults = 0;
 	}
 
 	return ESP_OK;
