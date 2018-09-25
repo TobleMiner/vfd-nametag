@@ -17,20 +17,25 @@
 
 #define PIN_NUM_RST  18
 
-struct menu menu_entries_0[] = {
+struct menu_entry menu_entries_0[] = {
 	{
-		.name = "menu00"
+		.name = "STATE",
+		.entry_data = {
+			.type = MENU_ENTRY_ON_OFF,
+			.key = "wifi.enable",
+			
+		}
 	},
 	{
-		.name = "menu01"
+		.name = "PASSWORD"
 	},
 	{
-		.name = "menu02"
+		.name = "PW RESET"
 	},
 	{ },
 };
 
-struct menu menu_entries_1[] = {
+struct menu_entry menu_entries_1[] = {
 	{
 		.name = "menu10"
 	},
@@ -43,7 +48,7 @@ struct menu menu_entries_1[] = {
 	{ },
 };
 
-struct menu menu_entries_2[] = {
+struct menu_entry menu_entries_2[] = {
 	{
 		.name = "menu20"
 	},
@@ -56,9 +61,9 @@ struct menu menu_entries_2[] = {
 	{ },
 };
 
-struct menu menu_entries_main[] = {
+struct menu_entry menu_entries_main[] = {
 	{
-		.name = "menu0",
+		.name = "WIFI",
 		.entries = menu_entries_0,
 	},
 	{
@@ -72,7 +77,7 @@ struct menu menu_entries_main[] = {
 	{ },
 };
 
-struct menu main_menu = {
+struct menu_entry main_menu = {
 	.name = NULL,
 	.entries = menu_entries_main,
 };

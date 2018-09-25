@@ -4,16 +4,25 @@
 #define menu_entry_is_last_child(entry) (menu_entry_is_delimiter(entry + 1))
 #define menu_entry_is_first_child(entry) ((entry) == &(entry)->parent->entries[0])
 
-esp_err_t menu_init(struct menu* menu, struct menu_state* state) {
-	struct menu* parent, *cursor;
-
-	if(menu->name || !menu->entries) {
-		// Not a toplevel menu
-		return ESP_ERR_INVALID_ARG;
+esp_err_t menu_alloc(struct menu** retval, struct menu_entry* root, struct datastore) {
+	esp_err_t err;
+	struct menu_entry* parent, *cursor;
+	struct menu* menu = calloc(1, sizeof(struct menu));
+	if(!menu) {
+		err = ESP_ERR_NO_MEM;
+		goto fail;
 	}
-	menu->parent = NULL;
-	parent = menu;
-	cursor = &menu->entries[0];
+
+	menu->datastore = datastore;
+
+	if(root->name || !root->entries) {
+		// Not a toplevel menu
+		err = ESP_ERR_INVALID_ARG;
+		goto fail_alloc;
+	}
+	root->parent = NULL;
+	parent = root;
+	cursor = &root->entries[0];
 	while(parent) {
 		cursor->parent = parent;
 		if(cursor->entries) {
@@ -29,8 +38,15 @@ esp_err_t menu_init(struct menu* menu, struct menu_state* state) {
 		}
 	}
 
-	state->current_entry = &menu->entries[0];
+	menu->state.current_entry = &root->entries[0];
+
+	*retval = menu;
 	return ESP_OK;
+
+fail_alloc:
+	free(menu);
+fail:
+	return err;
 }
 
 esp_err_t menu_descend(struct menu_state* state) {
