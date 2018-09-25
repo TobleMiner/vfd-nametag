@@ -56,9 +56,9 @@ static esp_err_t datastore_mem_store(struct datastore* ds, void* value, char* ke
 	struct list_head* cursor;
 
 	LIST_FOR_EACH(cursor, &ds_mem->storage) {
+		void* tmpptr;
 		mem_kvpair = LIST_ENTRY(cursor, struct datastore_mem_kvpair, list);
 		kvpair = &mem_kvpair->kvpair;
-		void* tmpptr;
 
 		if(strcmp(kvpair->key, key)) {
 			continue;
@@ -82,16 +82,39 @@ static esp_err_t datastore_mem_store(struct datastore* ds, void* value, char* ke
 	// There is no entry for this key, create a new one
 	mem_kvpair = calloc(1, sizeof(struct datastore_mem_kvpair));
 	if(!mem_kvpair) {
+		err = ESP_ERR_NO_MEM;
 		goto fail;
 	}
+	kvpair = &mem_kvpair->kvpair;
+
+	kvpair->datatype = datatype;
+
+	kvpair->key = strdup(key);
+	if(!kvpair->key) {
+		err = ESP_ERR_NO_MEM;
+		goto fail_kvpair_alloc;
+	}
+
+	if((err = datastore_clone_value(&kvpair->value, value, datatype))) {
+		goto fail_key_alloc;
+	}
+
+	LIST_APPEND(&mem_kvpair->list, &ds_mem->storage);
 
 	return ESP_OK;
+
+fail_key_alloc:
+	free(kvpair->key);
+fail_kvpair_alloc:
+	free(mem_kvpair);
 fail:
 	return err;
 }
 
 struct datastore_ops datastore_mem_ops = {
 	.alloc = datastore_mem_alloc,
+	.load = datastore_mem_load,
+	.store = datastore_mem_store,
 };
 
 struct datastore_def datastore_mem = {
