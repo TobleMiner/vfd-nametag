@@ -28,7 +28,7 @@ struct display {
 #define display_blank(disp, blank) ((disp)->ops.blank((disp), (blank)))
 #define display_set_brightness(disp, brightness) ((disp)->ops.set_brightness((disp), (brightness)))
 
-#define display_text_get_width(disp, width) ((disp)->text_ops.get_width((disp), (blank)))
+#define display_text_get_width(disp, width) ((disp)->text_ops.get_width((disp), (width)))
 #define display_text_display(disp, str) ((disp)->text_ops.display((disp), (str)))
 #define display_text_display_bin(disp, str, len) ((disp)->text_ops.display_bin((disp), (blank), (len)))
 #define display_text_define_char(disp, id, data) ((disp)->text_ops.define_char((disp), (id), (data)))

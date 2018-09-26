@@ -23,13 +23,20 @@ struct menu_entry menu_entries_0[] = {
 	{
 		.name = "STATE",
 		.entry_data = {
-			.type = MENU_ENTRY_TYPE_ON_OFF,
+			.datatype = DATATYPE_INT8,
+			.semantic_type = MENU_ENTRY_TYPE_ON_OFF,
 			.key = "wifi.enable",
-			
 		}
 	},
 	{
-		.name = "PASSWORD"
+		.name = "PASSWORD",
+		.entry_data = {
+			.datatype = DATATYPE_STRING,
+			.key = "wifi.password",
+			.flags = {
+				.readonly = 1,
+			}
+		}
 	},
 	{
 		.name = "PW RESET"
@@ -84,18 +91,22 @@ struct menu_entry main_menu = {
 	.entries = menu_entries_main,
 };
 
-/*
-struct datastore_kvpair_default datastore_mem_default_test = {
+const int8_t ZERO = 0;
 
-};
-*/
 struct datastore_kvpair_default datastore_mem_defaults[] = {
+	{
+		.kvpair = {
+			.key = "wifi.enable",
+			.value = &ZERO,
+			.datatype = DATATYPE_INT8,
+		},
+	},
 	{
 		.kvpair = {
 			.key = "default.test",
 			.value = "Default content",
 			.datatype = DATATYPE_STRING,
-		}
+		},
 	}
 };
 

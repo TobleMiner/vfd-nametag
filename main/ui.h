@@ -20,6 +20,10 @@ struct ui {
 	struct ui_element* active_element;
 };
 
+struct ui_element_ops {
+		
+};
+
 struct ui_element {
 	struct list_head list;
 

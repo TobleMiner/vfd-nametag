@@ -6,6 +6,10 @@
 #define min(x, y) (((x) < (y)) ? (x) : (y))
 #endif
 
+#ifndef max
+#define max(x, y) (((x) > (y)) ? (x) : (y))
+#endif
+
 #ifndef swp
 #define swp(_a, _b) \
 	do { \
