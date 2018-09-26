@@ -6,14 +6,15 @@
 #include "esp_err.h"
 
 #include "datastore.h"
+#include "ui.h"
 
 enum {
-	MENU_ENTRY_CUSTOM,
-	MENU_ENTRY_ON_OFF,
-	MENU_ENTRY_INT,
-	MENU_ENTRY_STRING,
+	MENU_ENTRY_TYPE_CUSTOM,
+	MENU_ENTRY_TYPE_ON_OFF,
+	MENU_ENTRY_TYPE_INT,
+	MENU_ENTRY_TYPE_STRING,
 
-	_MENU_ENTRY_MAX
+	_MENU_ENTRY_TYPE_MAX
 };
 
 struct menu;
@@ -22,21 +23,23 @@ struct menu_entry_data;
 
 struct menu_entry_data {
 	int type;
-	int display_type;
+	int semantic_type;
 	const char* key;
-
-	void* (*get_default_value)(struct menu_entry_data* entry, struct menu* menu);
 
 	int64_t min;
 	int64_t max;
+	size_t max_len;
 };
 
+typedef void (*menu_leave_cb)(void* priv);
 
 struct menu_entry;
 
 typedef esp_err_t (*menu_select_cb)(struct menu* entry, void* priv);
 
 typedef char* (*menu_name_cb)(struct menu* entry, void* priv);
+
+typedef uint8_t menu_entry_flag;
 
 struct menu_entry {
 	char* name; // Must be NULL for top level entry
@@ -47,6 +50,11 @@ struct menu_entry {
 
 	struct menu_entry_data entry_data;
 	
+	struct {
+		menu_entry_flag readonly:1;
+		menu_entry_flag persistent:1;
+	} flags;
+
 	menu_select_cb select_cb;
 };
 
@@ -55,18 +63,25 @@ struct menu_state {
 };
 
 struct menu {
+	struct ui_element ui_element;
+
+	menu_leave_cb leave_cb;
+	void* leave_cb_priv;
+
 	struct menu_entry* root;
-	struct datastore* datastore;
+	struct datastore* ds_volatile;
+	struct datastore* ds_persistent;
 	struct menu_state state;
 };
 
 #define menu_entry_name(entry) (entry)->name
+#define menu_entry_is_leaf(entry) ((!(entry)->entries) && (entry)->entry_data.key)
 #define menu_current_entry(state) ((state)->current_entry)
 #define menu_current_name(state) (menu_entry_name(menu_current_entry(state)))
 #define menu_can_descend(state) (!!(state)->current_entry->entries)
 #define menu_can_ascend(state) (!!(state)->current_entry->parent->name)
 
-esp_err_t menu_alloc(struct menu** retval, struct menu_entry* root, struct datastore* ds);
+esp_err_t menu_alloc(struct menu** retval, struct ui* ui, struct menu_entry* root, struct datastore* ds_volatile, struct datastore* ds_persistent, menu_leave_cb* leave_cb, void* priv);
 esp_err_t menu_descend(struct menu_state* state);
 esp_err_t menu_ascend(struct menu_state* state);
 esp_err_t menu_next(struct menu_state* state);

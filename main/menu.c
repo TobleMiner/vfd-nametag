@@ -4,7 +4,7 @@
 #define menu_entry_is_last_child(entry) (menu_entry_is_delimiter(entry + 1))
 #define menu_entry_is_first_child(entry) ((entry) == &(entry)->parent->entries[0])
 
-esp_err_t menu_alloc(struct menu** retval, struct menu_entry* root, struct datastore* ds) {
+esp_err_t menu_alloc(struct menu** retval, struct ui* ui, struct menu_entry* root, struct datastore* ds_volatile, struct datastore* ds_persistent, menu_leave_cb* leave_cb, void* priv) {
 	esp_err_t err;
 	struct menu_entry* parent, *cursor;
 	struct menu* menu = calloc(1, sizeof(struct menu));
@@ -13,7 +13,11 @@ esp_err_t menu_alloc(struct menu** retval, struct menu_entry* root, struct datas
 		goto fail;
 	}
 
-	menu->datastore = ds;
+	menu->ds_volatile = ds_volatile;
+	menu->ds_persistent = ds_persistent;
+
+	menu->leave_cb = leave_cb;
+	menu->leave_cb_priv = priv;
 
 	if(root->name || !root->entries) {
 		// Not a toplevel menu
@@ -39,6 +43,8 @@ esp_err_t menu_alloc(struct menu** retval, struct menu_entry* root, struct datas
 	}
 
 	menu->state.current_entry = &root->entries[0];
+
+	ui_element_init(&menu->ui_element);
 
 	*retval = menu;
 	return ESP_OK;
@@ -82,4 +88,3 @@ esp_err_t menu_prev(struct menu_state* state) {
 	state->current_entry--;
 	return ESP_OK;
 }
-

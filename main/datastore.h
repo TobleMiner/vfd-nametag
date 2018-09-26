@@ -82,4 +82,5 @@ esp_err_t datastore_init(struct datastore* ds, struct datastore_def* def, struct
 
 esp_err_t datastore_alloc(struct datastore** retval, datastore_flags flags, struct datastore_kvpair_default* defaults, size_t len);
 esp_err_t datastore_load(struct datastore* ds, void** value, char* key, int datatype);
+
 #endif

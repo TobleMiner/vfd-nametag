@@ -5,7 +5,9 @@
 #include "esp_spi_flash.h"
 
 #include "hcs_12SS59t.h"
+#include "ui.h"
 #include "menu.h"
+#include "menu_render.h"
 #include "userio.h"
 #include "encoder.h"
 #include "button.h"
@@ -21,7 +23,7 @@ struct menu_entry menu_entries_0[] = {
 	{
 		.name = "STATE",
 		.entry_data = {
-			.type = MENU_ENTRY_ON_OFF,
+			.type = MENU_ENTRY_TYPE_ON_OFF,
 			.key = "wifi.enable",
 			
 		}
@@ -160,31 +162,9 @@ void app_main()
 	err = display_text_display(disp, "Hello_World");
 	ESP_ERROR_CHECK(err);
 
-	struct menu* menu;
-	err = menu_alloc(&menu, &main_menu, NULL);
+	struct ui* ui;
+	err = ui_alloc(&ui, disp);
 	ESP_ERROR_CHECK(err);
-
-	struct userio* userio;
-	err = userio_alloc(&userio);
-	ESP_ERROR_CHECK(err);
-
-	struct encoder* enc;
-	err = encoder_alloc(&enc, userio, 12, 13);
-	ESP_ERROR_CHECK(err);
-
-	struct button_gpio* button_ok;
-	err = button_gpio_alloc(&button_ok, userio, 14, USERIO_ACTION_SELECT);
-	ESP_ERROR_CHECK(err);
-
-	struct button_gpio* button_back;
-	err = button_gpio_alloc(&button_back, userio, 27, USERIO_ACTION_BACK);
-	ESP_ERROR_CHECK(err);
-
-	struct event_queue_data eq_data;
-	eq_data.userio = userio;
-	eq_data.menu = menu;
-
-	xTaskCreate(userio_event_loop, "userio_event_loop", 2048, &eq_data, 10, NULL);
 
 	printf("Allocating datastore...\n");
 	struct datastore* ds;
@@ -220,6 +200,40 @@ void app_main()
 
 	printf("Read back key default.test as '%s'\n", strval ? strval : "NULL");
 
+	struct menu* menu;
+	err = menu_alloc(&menu, ui, &main_menu, ds, ds, NULL, NULL);
+	ESP_ERROR_CHECK(err);
+
+	ui_add_element(&menu->ui_element, ui);
+	ui_set_active_element(ui, &menu->ui_element);
+
+	struct menu_render* menu_render;
+	err = menu_render_alloc(&menu_render);
+	ESP_ERROR_CHECK(err);
+
+	ui_element_attach_render(&menu_render->ui_render, &menu->ui_element);
+
+	struct userio* userio;
+	err = userio_alloc(&userio);
+	ESP_ERROR_CHECK(err);
+
+	struct encoder* enc;
+	err = encoder_alloc(&enc, userio, 12, 13);
+	ESP_ERROR_CHECK(err);
+
+	struct button_gpio* button_ok;
+	err = button_gpio_alloc(&button_ok, userio, 14, USERIO_ACTION_SELECT);
+	ESP_ERROR_CHECK(err);
+
+	struct button_gpio* button_back;
+	err = button_gpio_alloc(&button_back, userio, 27, USERIO_ACTION_BACK);
+	ESP_ERROR_CHECK(err);
+
+	struct event_queue_data eq_data;
+	eq_data.userio = userio;
+	eq_data.menu = menu;
+
+	xTaskCreate(userio_event_loop, "userio_event_loop", 2048, &eq_data, 10, NULL);
 
 	uint8_t brightness = 1;
 	uint8_t direction = 0;
@@ -236,7 +250,8 @@ void app_main()
 				direction = 1;
 			}
 		}
-		display_text_display(disp, menu_current_name(&menu->state));
+		ui_do_render(ui);
+//		display_text_display(disp, menu_current_name(&menu->state));
 		display_set_brightness(disp, brightness);
 
 //		vTaskDelay(500 / portTICK_PERIOD_MS);

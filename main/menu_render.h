@@ -1,18 +1,12 @@
 #ifndef _MENU_RENDER_H_
 #define _MENU_RENDER_H_
 
-#include "menu.h"
-
-struct menu_render;
-
-struct menu_entry_render {
-	void (*render)(struct menu_render* render, struct menu_state* state);
-};
+#include "ui.h"
 
 struct menu_render {
-	struct display* disp;
-	struct menu* menu;
+	struct ui_element_render ui_render;
 };
 
+esp_err_t menu_render_alloc(struct menu_render** retval);
 
 #endif
