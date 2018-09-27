@@ -36,7 +36,7 @@ struct menu_entry_data {
 	size_t max_len;
 };
 
-typedef void (*menu_leave_cb)(void* priv);
+typedef esp_err_t (*menu_leave_cb)(void* priv);
 
 struct menu_entry;
 

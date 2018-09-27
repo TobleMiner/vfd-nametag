@@ -4,6 +4,9 @@
 #define menu_entry_is_last_child(entry) (menu_entry_is_delimiter(entry + 1))
 #define menu_entry_is_first_child(entry) ((entry) == &(entry)->parent->entries[0])
 
+#define STATE_TO_MENU(state) \
+	container_of((state), struct menu, state);
+
 esp_err_t menu_alloc(struct menu** retval, struct ui* ui, struct menu_entry* root, struct datastore* ds_volatile, struct datastore* ds_persistent, menu_leave_cb leave_cb, void* priv) {
 	esp_err_t err;
 	struct menu_entry* parent, *cursor;
@@ -55,19 +58,70 @@ fail:
 	return err;
 }
 
-esp_err_t menu_descend(struct menu_state* state) {
-	if(!menu_can_descend(state)) {
-		return ESP_ERR_INVALID_ARG;
+static esp_err_t menu_select_entry_semantic(struct menu* menu, struct menu_entry* entry) {
+	esp_err_t err;
+	struct datastore* ds;
+
+	ds = menu->ds_volatile;
+	if(entry->entry_data.flags.persistent) {
+		ds = menu->ds_persistent;
 	}
-	state->current_entry = &state->current_entry->entries[0];
+
+	switch(entry->entry_data.semantic_type) {
+		case MENU_ENTRY_TYPE_ON_OFF: {
+			int8_t val;
+			if((err = -datastore_load_inplace(ds, &val, sizeof(val), entry->entry_data.key, entry->entry_data.datatype)) > 0) {
+				goto fail;
+			}
+			val = !val;
+			if((err = datastore_store(ds, &val, entry->entry_data.key, entry->entry_data.datatype))) {
+				goto fail;
+			}
+			break;
+		}
+	}
+	return ESP_OK;
+
+fail:
+	return err;
+}
+
+esp_err_t menu_descend(struct menu_state* state) {
+	esp_err_t err;
+	struct menu* menu;
+
+	if(menu_can_descend(state)) {
+		state->current_entry = &state->current_entry->entries[0];
+		return ESP_OK;
+	}
+
+	menu = STATE_TO_MENU(state);
+	if(state->current_entry->entry_data.semantic_type) {
+		if((err = menu_select_entry_semantic(menu, state->current_entry))) {
+			return err;
+		}
+	}
+
+	if(state->current_entry->select_cb) {
+		return state->current_entry->select_cb(menu, state->current_entry, NULL);
+	}
+
 	return ESP_OK;
 }
 
 esp_err_t menu_ascend(struct menu_state* state) {
-	if(!menu_can_ascend(state)) {
-		return ESP_ERR_INVALID_ARG;
+	struct menu* menu;
+
+	if(menu_can_ascend(state)) {
+		state->current_entry = state->current_entry->parent;
+		return ESP_OK;
 	}
-	state->current_entry = state->current_entry->parent;
+
+	menu = STATE_TO_MENU(state);
+	if(menu->leave_cb) {
+		return menu->leave_cb(menu->leave_cb_priv);
+	}
+
 	return ESP_OK;
 }
 
