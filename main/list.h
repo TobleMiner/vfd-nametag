@@ -28,7 +28,7 @@ struct list_head {
 		(list)->next = (entry); \
 	} while(0)
 
-#define LIST_REMOVE(entry) \
+#define LIST_DELETE(entry) \
 	do { \
 		(entry)->prev->next = (entry)->next; \
 		(entry)->next->prev = (entry)->prev; \
