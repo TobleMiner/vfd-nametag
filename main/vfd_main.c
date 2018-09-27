@@ -127,10 +127,14 @@ void userio_event_loop(void* arg) {
 	struct userio* userio = eq_data->userio;
 	struct ui* ui = eq_data->ui;
 	userio_action action;
+	esp_err_t err;
 
 	while(1) {
 		if(userio_wait_event(userio, &action)) {
-			ui_action_performed(ui, action);
+			err = ui_action_performed(ui, action);
+			if(err) {
+				printf("Action failed: %x\n", err);
+			}
 		}
 	}
 }
