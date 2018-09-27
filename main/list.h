@@ -1,6 +1,8 @@
 #ifndef _LIST_H_
 #define _LIST_H_
 
+#include <stdint.h>
+
 #include "util.h"
 
 struct list_head;
@@ -25,5 +27,23 @@ struct list_head {
 		(entry)->prev = (list); \
 		(list)->next = (entry); \
 	} while(0)
+
+#define LIST_REMOVE(entry) \
+	do { \
+		(entry)->prev->next = (entry)->next; \
+		(entry)->next->prev = (entry)->prev; \
+		(entry)->prev = (entry); \
+		(entry)->next = (entry); \
+	} while(0)
+
+inline size_t LIST_LENGTH(struct list_head* list) {
+	struct list_head* cursor;
+	size_t len = 0;
+
+	LIST_FOR_EACH(cursor, list) {
+		len++;
+	}
+	return len;
+}
 
 #endif

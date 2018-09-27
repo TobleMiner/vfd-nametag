@@ -1,4 +1,5 @@
 #include "menu.h"
+#include "value_editor.h"
 
 #define menu_entry_is_delimiter(entry) (!((entry)->name || (entry)->entries || (entry)->select_cb))
 #define menu_entry_is_last_child(entry) (menu_entry_is_delimiter(entry + 1))
@@ -23,7 +24,7 @@ static esp_err_t menu_action_performed(struct ui* ui, struct ui_element* elem, u
 			menu_prev(state);
 			break;
 		case USERIO_ACTION_SELECT:
-			menu_descend(state);
+			menu_descend(ui, state);
 			break;
 		case USERIO_ACTION_BACK:
 			menu_ascend(state);
@@ -124,7 +125,32 @@ fail:
 	return err;
 }
 
-esp_err_t menu_descend(struct menu_state* state) {
+static esp_err_t menu_start_editor(struct ui* ui, struct menu* menu, struct menu_entry* entry) {
+	esp_err_t err;
+	struct value_editor_config conf;
+	struct value_editor* editor;
+	struct datastore* ds;
+
+	conf.min = entry->entry_data.min;
+	conf.max = entry->entry_data.max;
+	conf.flags.readonly = entry->entry_data.flags.readonly;
+
+	ds = menu->ds_volatile;
+	if(entry->entry_data.flags.persistent) {
+		ds = menu->ds_persistent;
+	}
+
+	if((err = value_editor_alloc(&editor, &menu->ui_element, entry->entry_data.key, entry->entry_data.datatype, ds, &conf))) {
+		return err;
+	}
+
+	ui_add_element(&editor->ui_element, ui);
+	ui_set_active_element(ui, &editor->ui_element);
+
+	return ESP_OK;
+}
+
+esp_err_t menu_descend(struct ui* ui, struct menu_state* state) {
 	esp_err_t err;
 	struct menu* menu;
 
@@ -144,7 +170,7 @@ esp_err_t menu_descend(struct menu_state* state) {
 		return state->current_entry->select_cb(menu, state->current_entry, NULL);
 	}
 
-	return ESP_OK;
+	return menu_start_editor(ui, menu, state->current_entry);
 }
 
 esp_err_t menu_ascend(struct menu_state* state) {

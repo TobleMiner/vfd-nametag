@@ -59,6 +59,9 @@ struct ui_element_def {
 #define ui_add_element(element, ui) \
 	LIST_APPEND(&(element)->list, &(ui)->ui_elements)
 
+#define ui_remove_element(element) \
+	LIST_REMOVE(&(element)->list)
+
 inline esp_err_t ui_action_performed(struct ui* ui, userio_action action) {
 	struct ui_element* elem = ui->active_element;
 	if(elem->def->ops && elem->def->ops->action_performed) {
