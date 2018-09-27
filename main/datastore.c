@@ -156,7 +156,16 @@ esp_err_t datastore_load(struct datastore* ds, void** value, const char* key, in
 		return err;
 	}
 
-	return datastore_load_default(ds, value, key, datatype);
+	if((err = datastore_load_default(ds, value, key, datatype))) {
+		return err;
+	}
+
+	if((err = datastore_store(ds, *value, key, datatype))) {
+		free(*value);
+		*value = NULL;
+	}
+
+	return err;
 }
 
 ssize_t datastore_load_inplace(struct datastore* ds, void* value, size_t len, const char* key, int datatype) {
