@@ -18,17 +18,13 @@ static esp_err_t menu_action_performed(struct ui* ui, struct ui_element* elem, u
 	struct menu_state* state = &menu->state;
 	switch(action) {
 		case USERIO_ACTION_NEXT:
-			menu_next(state);
-			break;
+			return menu_next(state);
 		case USERIO_ACTION_PREV:
-			menu_prev(state);
-			break;
+			return menu_prev(state);
 		case USERIO_ACTION_SELECT:
-			menu_descend(ui, state);
-			break;
+			return menu_descend(ui, state);
 		case USERIO_ACTION_BACK:
-			menu_ascend(state);
-			break;
+			return menu_ascend(state);
 	}
 	return ESP_ERR_NOT_SUPPORTED;
 }
