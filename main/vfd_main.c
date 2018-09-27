@@ -29,7 +29,7 @@ struct menu_entry menu_entries_0[] = {
 		}
 	},
 	{
-		.name = "PASSWORD",
+		.name = "SHOW PASSWD",
 		.entry_data = {
 			.datatype = DATATYPE_STRING,
 			.key = "wifi.password",
@@ -39,7 +39,7 @@ struct menu_entry menu_entries_0[] = {
 		}
 	},
 	{
-		.name = "PW RESET"
+		.name = "RESET PASSWD"
 	},
 	{ },
 };
