@@ -8,6 +8,7 @@
 
 #include "display.h"
 #include "list.h"
+#include "userio.h"
 
 
 typedef uint8_t ui_render_flag;
@@ -21,7 +22,7 @@ struct ui {
 };
 
 struct ui_element_ops {
-		
+	esp_err_t (*action_performed)(struct ui* ui, struct ui_element* elem, userio_action action);
 };
 
 struct ui_element {
@@ -30,6 +31,8 @@ struct ui_element {
 	struct list_head renders;
 
 	bool needs_render;
+
+	struct ui_element_ops* ops;
 };
 
 struct ui_element_render;
@@ -55,15 +58,22 @@ struct ui_element_render {
 #define ui_element_attach_render(render, elem) \
 	LIST_APPEND(&(render)->list, &(elem)->renders)
 
+inline esp_err_t ui_action_performed(struct ui* ui, userio_action action) {
+	struct ui_element* elem = ui->active_element;
+	if(elem->ops && elem->ops->action_performed) {
+		return elem->ops->action_performed(ui, elem, action);
+	}
+	return ESP_OK;
+}
+
 #define ui_element_update(elem) \
 	(elem)->needs_render = true
 
 #define ui_set_active_element(ui, elem) \
 	(ui)->active_element = elem;
 
-
 esp_err_t ui_alloc(struct ui** retval, struct display* disp);
-void ui_element_init(struct ui_element* elem);
+void ui_element_init(struct ui_element* elem, struct ui_element_ops* ops);
 void ui_element_render_init(struct ui_element_render* render, struct ui_element_render_ops* ops);
 esp_err_t ui_do_render(struct ui* ui);
 

@@ -20,8 +20,9 @@ fail:
 	return err;
 }
 
-void ui_element_init(struct ui_element* elem) {
+void ui_element_init(struct ui_element* elem, struct ui_element_ops* ops) {
 	INIT_LIST_HEAD(elem->renders);
+	elem->ops = ops;
 }
 
 void ui_element_render_init(struct ui_element_render* render, struct ui_element_render_ops* ops) {

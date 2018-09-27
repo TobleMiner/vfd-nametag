@@ -7,6 +7,33 @@
 #define STATE_TO_MENU(state) \
 	container_of((state), struct menu, state);
 
+#define UI_ELEMENT_TO_MENU(elem) \
+	container_of((elem), struct menu, ui_element);
+
+static esp_err_t menu_action_performed(struct ui* ui, struct ui_element* elem, userio_action action) {
+	struct menu* menu = UI_ELEMENT_TO_MENU(elem);
+	struct menu_state* state = &menu->state;
+	switch(action) {
+		case USERIO_ACTION_NEXT:
+			menu_next(state);
+			break;
+		case USERIO_ACTION_PREV:
+			menu_prev(state);
+			break;
+		case USERIO_ACTION_SELECT:
+			menu_descend(state);
+			break;
+		case USERIO_ACTION_BACK:
+			menu_ascend(state);
+			break;
+	}
+	return ESP_ERR_NOT_SUPPORTED;
+}
+
+struct ui_element_ops menu_ops = {
+	.action_performed = menu_action_performed,
+};
+
 esp_err_t menu_alloc(struct menu** retval, struct ui* ui, struct menu_entry* root, struct datastore* ds_volatile, struct datastore* ds_persistent, menu_leave_cb leave_cb, void* priv) {
 	esp_err_t err;
 	struct menu_entry* parent, *cursor;
@@ -47,7 +74,7 @@ esp_err_t menu_alloc(struct menu** retval, struct ui* ui, struct menu_entry* roo
 
 	menu->state.current_entry = &root->entries[0];
 
-	ui_element_init(&menu->ui_element);
+	ui_element_init(&menu->ui_element, &menu_ops);
 
 	*retval = menu;
 	return ESP_OK;

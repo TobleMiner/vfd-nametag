@@ -112,31 +112,18 @@ struct datastore_kvpair_default datastore_mem_defaults[] = {
 
 struct event_queue_data {
 	struct userio* userio;
-	struct menu* menu;
+	struct ui* ui;
 };
 
 void userio_event_loop(void* arg) {
 	struct event_queue_data* eq_data = arg;
 	struct userio* userio = eq_data->userio;
-	struct menu_state* state = &eq_data->menu->state;
+	struct ui* ui = eq_data->ui;
 	userio_action action;
 
 	while(1) {
 		if(userio_wait_event(userio, &action)) {
-			switch(action) {
-				case USERIO_ACTION_NEXT:
-					menu_next(state);
-					break;
-				case USERIO_ACTION_PREV:
-					menu_prev(state);
-					break;
-				case USERIO_ACTION_SELECT:
-					menu_descend(state);
-					break;
-				case USERIO_ACTION_BACK:
-					menu_ascend(state);
-					break;
-			}
+			ui_action_performed(ui, action);
 		}
 	}
 }
@@ -242,7 +229,7 @@ void app_main()
 
 	struct event_queue_data eq_data;
 	eq_data.userio = userio;
-	eq_data.menu = menu;
+	eq_data.ui = ui;
 
 	xTaskCreate(userio_event_loop, "userio_event_loop", 2048, &eq_data, 10, NULL);
 
