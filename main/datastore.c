@@ -126,7 +126,7 @@ void datastore_free(struct datastore* ds) {
 	// TODO free cache contents
 }
 
-static esp_err_t datastore_load_default(struct datastore* ds, void** value, char* key, int datatype) {
+static esp_err_t datastore_load_default(struct datastore* ds, void** value, const char* key, int datatype) {
 	size_t i;
 
 	for(i = 0; i < ds->num_defaults; i++) {
@@ -145,16 +145,39 @@ static esp_err_t datastore_load_default(struct datastore* ds, void** value, char
 	}
 
 	*value = NULL;
-	return ESP_OK;
+	return ESP_ERR_NOT_FOUND;
 }
 
-esp_err_t datastore_load(struct datastore* ds, void** value, char* key, int datatype) {
+esp_err_t datastore_load(struct datastore* ds, void** value, const char* key, int datatype) {
 	esp_err_t err;
 
 	err = ds->def->ops->load(ds, value, key, datatype);
-	if(err || *value) {
+	if((err && err != ESP_ERR_NOT_FOUND) || *value) {
 		return err;
 	}
 
-	return datastore_load_default(ds, value, key, datatype);	
+	return datastore_load_default(ds, value, key, datatype);
+}
+
+ssize_t datastore_load_inplace(struct datastore* ds, void* value, size_t len, const char* key, int datatype) {
+	void* data;
+	ssize_t datalen;
+
+	if(ds->def->ops->load_inplace) {
+		datalen = ds->def->ops->load_inplace(ds, value, len, key, datatype);
+		if((datalen < 0 && (datalen != -ESP_ERR_NOT_FOUND)) || datalen > 0) {
+			return datalen;
+		}
+	}
+
+	datalen = datastore_load(ds, &data, key, datatype);
+	if(datalen) {
+		// Beware of inverted error logic!
+		return -datalen;
+	}
+
+	len = min(datatype_get_size(datatype, data), len);
+	memcpy(value, data, len);
+	free(data);
+	return len;
 }

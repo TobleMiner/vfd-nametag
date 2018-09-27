@@ -12,7 +12,7 @@ struct datastore_kvpair {
 	int datatype;
 };
 
-typedef esp_err_t (*datastore_default_value_cb)(void** value, char* key, int datatype, void* priv);
+typedef esp_err_t (*datastore_default_value_cb)(void** value, const char* key, int datatype, void* priv);
 
 /* Do NOT pass values that must be freed as default values through the kvpair member!
    Use the default_cb instead! 
@@ -30,9 +30,11 @@ struct datastore_ops {
 	void (*free)(struct datastore* ds);
 
 	/* Values loaded from a datastore are malloced and MUST be freed! */
-	esp_err_t (*load)(struct datastore* ds, void** value, char* key, int datatype);
+	esp_err_t (*load)(struct datastore* ds, void** value, const char* key, int datatype);
+	/* Values loaded via load_inplace are copied into a preallocated buffer */
+	ssize_t (*load_inplace)(struct datastore* ds, void* value, size_t len, const char* key, int datatype);
 	/* Supports only fixed length datatypes and NUL-terminated strings */
-	esp_err_t (*store)(struct datastore* ds, void* value, char* key, int datatype);
+	esp_err_t (*store)(struct datastore* ds, void* value, const char* key, int datatype);
 };
 
 /* Do not use any of the following ops from outside the internal datastore code! External use
@@ -81,6 +83,7 @@ esp_err_t datastore_clone_value(void** retval, void* src, int datatype);
 esp_err_t datastore_init(struct datastore* ds, struct datastore_def* def, struct datastore_kvpair_default* defaults, size_t len);
 
 esp_err_t datastore_alloc(struct datastore** retval, datastore_flags flags, struct datastore_kvpair_default* defaults, size_t len);
-esp_err_t datastore_load(struct datastore* ds, void** value, char* key, int datatype);
+esp_err_t datastore_load(struct datastore* ds, void** value, const char* key, int datatype);
+ssize_t datastore_load_inplace(struct datastore* ds, void* value, size_t len, const char* key, int datatype);
 
 #endif

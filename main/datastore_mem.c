@@ -8,6 +8,7 @@
 struct datastore_ops datastore_mem_ops = {
 	.alloc = datastore_mem_alloc,
 	.load = datastore_mem_load,
+	.load_inplace = datastore_mem_load_inplace,
 	.store = datastore_mem_store,
 };
 
@@ -40,8 +41,9 @@ fail:
 	return err;
 }
 
-esp_err_t datastore_mem_load(struct datastore* ds, void** value, char* key, int datatype) {
+static esp_err_t datastore_mem_find_kvpair(struct datastore* ds, struct datastore_kvpair** retval, const char* key, int datatype) {
 	struct datastore_mem* ds_mem = DS_TO_DS_MEM(ds);
+
 	struct list_head* cursor;
 
 	LIST_FOR_EACH(cursor, &ds_mem->storage) {
@@ -53,17 +55,53 @@ esp_err_t datastore_mem_load(struct datastore* ds, void** value, char* key, int 
 		}
 
 		if(kvpair->datatype != datatype) {
-			return ESP_ERR_INVALID_STATE;
+			return ESP_ERR_INVALID_ARG;
 		}
 
-		return datastore_clone_value(value, kvpair->value, datatype);
+		*retval = kvpair;
+		return ESP_OK;
 	}
 
-	*value = NULL;
+	*retval = NULL;
 	return ESP_OK;
 }
 
-esp_err_t datastore_mem_store(struct datastore* ds, void* value, char* key, int datatype) {
+esp_err_t datastore_mem_load(struct datastore* ds, void** value, const char* key, int datatype) {
+	esp_err_t err;
+	struct datastore_kvpair* kvpair;
+
+	if((err = datastore_mem_find_kvpair(ds, &kvpair, key, datatype))) {
+		return err;
+	}
+
+	if(!kvpair) {
+		*value = NULL;
+		return ESP_ERR_NOT_FOUND;
+	}
+
+	return datastore_clone_value(value, kvpair->value, datatype);
+}
+
+ssize_t datastore_mem_load_inplace(struct datastore* ds, void* value, size_t len, const char* key, int datatype) {
+	esp_err_t err;
+	struct datastore_kvpair* kvpair;
+
+	if((err = datastore_mem_find_kvpair(ds, &kvpair, key, datatype))) {
+		return -err;
+	}
+
+	if(!kvpair) {
+		return -ESP_ERR_NOT_FOUND;
+	}
+
+	len = min(datatype_get_size(datatype, kvpair->value), len);
+
+	memcpy(value, kvpair->value, len);
+
+	return len;
+}
+
+esp_err_t datastore_mem_store(struct datastore* ds, void* value, const char* key, int datatype) {
 	esp_err_t err;
 	struct datastore_mem_kvpair* mem_kvpair;
 	struct datastore_kvpair* kvpair;
