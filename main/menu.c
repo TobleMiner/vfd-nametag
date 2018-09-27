@@ -164,9 +164,12 @@ esp_err_t menu_descend(struct ui* ui, struct menu_state* state) {
 
 	if(state->current_entry->select_cb) {
 		return state->current_entry->select_cb(menu, state->current_entry, NULL);
+	} else if(!state->current_entry->entry_data.semantic_type) {
+		printf("Starting editor\n");
+		return menu_start_editor(ui, menu, state->current_entry);
 	}
 
-	return menu_start_editor(ui, menu, state->current_entry);
+	return ESP_OK;
 }
 
 esp_err_t menu_ascend(struct menu_state* state) {
