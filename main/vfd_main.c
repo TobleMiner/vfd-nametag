@@ -103,6 +103,13 @@ struct datastore_kvpair_default datastore_mem_defaults[] = {
 	},
 	{
 		.kvpair = {
+			.key = "wifi.password",
+			.value = "AU7BK1IOAM2F",
+			.datatype = DATATYPE_STRING,
+		},
+	},
+	{
+		.kvpair = {
 			.key = "default.test",
 			.value = "Default content",
 			.datatype = DATATYPE_STRING,
