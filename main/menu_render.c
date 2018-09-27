@@ -76,26 +76,13 @@ fail:
 	return err;
 }
 
-struct ui_element_render_ops menu_render_ops = {
+struct ui_element_render_ops menu_render_text_ops = {
 	.render = menu_render_render,
 };
 
-esp_err_t menu_render_alloc(struct menu_render** retval) {
-	esp_err_t err;
-
-	struct menu_render* render = calloc(1, sizeof(struct menu_render));
-	if(!render) {
-		err = ESP_ERR_NO_MEM;
-		goto fail;
-	}
-
-	ui_element_render_init(&render->ui_render, &menu_render_ops);
-
-	render->ui_render.flags.text = 1;
-
-	*retval = render;
-	return ESP_OK;
-
-fail:
-	return err;
-}
+struct ui_element_render menu_render_text = {
+	.flags = {
+		.text = 1,
+	},
+	.ops = &menu_render_text_ops
+};

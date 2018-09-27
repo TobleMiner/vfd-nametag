@@ -205,12 +205,6 @@ void app_main()
 	ui_add_element(&menu->ui_element, ui);
 	ui_set_active_element(ui, &menu->ui_element);
 
-	struct menu_render* menu_render;
-	err = menu_render_alloc(&menu_render);
-	ESP_ERROR_CHECK(err);
-
-	ui_element_attach_render(&menu_render->ui_render, &menu->ui_element);
-
 	struct userio* userio;
 	err = userio_alloc(&userio);
 	ESP_ERROR_CHECK(err);

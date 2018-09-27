@@ -10,6 +10,8 @@
 #define UI_ELEMENT_TO_MENU(elem) \
 	container_of((elem), struct menu, ui_element);
 
+extern struct ui_element_render menu_render_text;
+
 static esp_err_t menu_action_performed(struct ui* ui, struct ui_element* elem, userio_action action) {
 	struct menu* menu = UI_ELEMENT_TO_MENU(elem);
 	struct menu_state* state = &menu->state;
@@ -33,6 +35,15 @@ static esp_err_t menu_action_performed(struct ui* ui, struct ui_element* elem, u
 struct ui_element_ops menu_ops = {
 	.action_performed = menu_action_performed,
 };
+
+struct ui_element_def menu_def = {
+	.renders = {
+		&menu_render_text,
+		NULL,
+	},
+	.ops = &menu_ops,
+};
+
 
 esp_err_t menu_alloc(struct menu** retval, struct ui* ui, struct menu_entry* root, struct datastore* ds_volatile, struct datastore* ds_persistent, menu_leave_cb leave_cb, void* priv) {
 	esp_err_t err;
@@ -74,7 +85,7 @@ esp_err_t menu_alloc(struct menu** retval, struct ui* ui, struct menu_entry* roo
 
 	menu->state.current_entry = &root->entries[0];
 
-	ui_element_init(&menu->ui_element, &menu_ops);
+	ui_element_init(&menu->ui_element, &menu_def);
 
 	*retval = menu;
 	return ESP_OK;

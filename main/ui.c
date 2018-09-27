@@ -20,27 +20,22 @@ fail:
 	return err;
 }
 
-void ui_element_init(struct ui_element* elem, struct ui_element_ops* ops) {
-	INIT_LIST_HEAD(elem->renders);
-	elem->ops = ops;
-}
-
-void ui_element_render_init(struct ui_element_render* render, struct ui_element_render_ops* ops) {
-	INIT_LIST_HEAD(render->list);
-	render->ops = ops;
+void ui_element_init(struct ui_element* elem, struct ui_element_def* def) {
+	elem->def = def;
 }
 
 static struct ui_element_render* ui_element_find_render(struct ui_element* elem, struct display* disp) {
-	struct list_head* cursor;
+	struct ui_element_render** render_ptr = elem->def->renders;
 
-	LIST_FOR_EACH(cursor, &elem->renders) {
-		struct ui_element_render* render = LIST_GET_ENTRY(cursor, struct ui_element_render, list);
+	while(*render_ptr) {
+		struct ui_element_render* render = *render_ptr;
+		if((disp->capabilities & DISPLAY_CAP_GRAPHICS) && render->flags.graphics) {
+			return render;
+		}		
 		if((disp->capabilities & DISPLAY_CAP_TEXT) && render->flags.text) {
 			return render;
 		}
-		if((disp->capabilities & DISPLAY_CAP_GRAPHICS) && render->flags.graphics) {
-			return render;
-		}
+		render_ptr++;
 	}
 
 	return NULL;
