@@ -9,7 +9,7 @@
 
 #include "userio.h"
 
-#define BUTTON_DEBOUNCE_INTERVAL (pdMS_TO_TICKS(10))
+#define BUTTON_DEBOUNCE_INTERVAL (pdMS_TO_TICKS(200))
 
 struct button_gpio {
 	struct userio* userio;
