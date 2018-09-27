@@ -46,23 +46,18 @@ esp_err_t menu_render_render(struct ui_element_render* render, struct ui_element
 
 		switch(entry->entry_data.semantic_type) {
 			case MENU_ENTRY_TYPE_ON_OFF: {
-				int8_t* val;
+				int8_t val;
 				char* strval;
 				size_t vallen;
-				if(datastore_load(ds, &val, entry->entry_data.key, entry->entry_data.datatype)) {
+				if((err = datastore_load_inplace(ds, &val, sizeof(val), entry->entry_data.key, entry->entry_data.datatype)) < 0) {
 					goto fail_semantic;
 				}
-				if(!val) {
-					err = ESP_ERR_NOT_FOUND;
-					goto fail_semantic;
-				}
-				strval = *val ? "ON" : "OFF";
+				strval = val ? "ON" : "OFF";
 				vallen = strlen(strval);
 				while(leftover_space-- > vallen) {
 					*name_end++ = ' ';
 				}
 				snprintf(name_end, vallen + 1, strval);
-				free(val);
 				break;
 			}
 			default:
