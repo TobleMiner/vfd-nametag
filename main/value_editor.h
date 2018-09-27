@@ -28,7 +28,7 @@ struct value_editor {
 	const char* key;
 	int datatype;
 	struct datastore* ds;
-	const void* value;
+	void* value;
 };
 
 esp_err_t value_editor_alloc(struct value_editor** retval, struct ui_element* caller, const char* key, int datatype, struct datastore* ds, struct value_editor_config* conf);
