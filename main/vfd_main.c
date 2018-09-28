@@ -46,13 +46,35 @@ struct menu_entry menu_entries_0[] = {
 
 struct menu_entry menu_entries_1[] = {
 	{
-		.name = "menu10"
+		.name = "ON_OFF",
+		.entry_data = {
+			.datatype = DATATYPE_INT8,
+			.semantic_type = MENU_ENTRY_TYPE_ON_OFF,
+			.key = "test.on_off",
+			.flags = {
+				.readonly = 1,
+			}
+		}
 	},
 	{
-		.name = "menu11"
+		.name = "STRING",
+		.entry_data = {
+			.datatype = DATATYPE_STRING,
+			.key = "test.string",
+			.flags = {
+				.readonly = 1,
+			}
+		}
 	},
 	{
-		.name = "menu12"
+		.name = "INT",
+		.entry_data = {
+			.datatype = DATATYPE_INT32,
+			.key = "test.int32",
+			.flags = {
+				.readonly = 1,
+			}
+		}
 	},
 	{ },
 };
@@ -76,7 +98,7 @@ struct menu_entry menu_entries_main[] = {
 		.entries = menu_entries_0,
 	},
 	{
-		.name = "menu1",
+		.name = "TYPE TESTING",
 		.entries = menu_entries_1,
 	},
 	{
@@ -92,6 +114,7 @@ struct menu_entry main_menu = {
 };
 
 const int8_t ZERO = 0;
+const int32_t TESTVAL = 0x42424242;
 
 struct datastore_kvpair_default datastore_mem_defaults[] = {
 	{
@@ -114,7 +137,28 @@ struct datastore_kvpair_default datastore_mem_defaults[] = {
 			.value = "Default content",
 			.datatype = DATATYPE_STRING,
 		},
-	}
+	},
+	{
+		.kvpair = {
+			.key = "test.on_off",
+			.value = &ZERO,
+			.datatype = DATATYPE_INT8,
+		},
+	},
+	{
+		.kvpair = {
+			.key = "test.string",
+			.value = "TESTSTRING",
+			.datatype = DATATYPE_STRING,
+		},
+	},
+	{
+		.kvpair = {
+			.key = "test.int32",
+			.value = &TESTVAL,
+			.datatype = DATATYPE_INT32,
+		},
+	},
 };
 
 struct event_queue_data {
