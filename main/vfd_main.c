@@ -25,15 +25,68 @@
 
 #define PIN_NUM_RST  18
 
+static esp_err_t generate_wifi_password_(char** retval) {
+	*retval = wifi_alloc_password(12);
+	if(!*retval) {
+		return ESP_ERR_NO_MEM;
+	}
+	return ESP_OK;
+
+}
 
 static esp_err_t generate_wifi_password(void** value, const char* key, int datatype, void* priv) {
 	if(datatype != DATATYPE_STRING) {
 		return ESP_ERR_INVALID_ARG;
 	}
 
-	*value = wifi_alloc_password(12);
-	if(!*value) {
-		return ESP_ERR_NO_MEM;
+	return generate_wifi_password_(value);
+}
+
+static esp_err_t set_wifi_state_(struct datastore* ds, bool state) {
+	esp_err_t err = ESP_OK;
+
+	printf("Setting wifi state to %u\n", (unsigned)state);
+
+	if(state) {
+		char* passwd;
+
+		if((err = datastore_load(ds, &passwd, "wifi.password", DATATYPE_STRING))) {
+			goto fail;
+		}
+
+		err = wifi_ap_start(NAMETAG_SSID, passwd);
+
+		free(passwd);
+	} else {
+		wifi_ap_stop();
+	}
+
+fail:
+	return err;
+}
+
+static esp_err_t reset_wifi_password(struct menu* menu, struct menu_entry* entry, void* priv) {
+	esp_err_t err;
+	char* passwd;
+	struct datastore* ds = menu_get_datastore(menu, entry);
+
+	printf("Resetting WiFi password\n");
+
+	if((err = generate_wifi_password_(&passwd))) {
+		return err;
+	}
+
+	if((err = datastore_store(menu->ds_persistent, passwd, "wifi.password", DATATYPE_STRING))) {
+		return err;
+	}
+
+	if(wifi_enabled()) {
+		if((err = set_wifi_state_(menu->ds_persistent, false))) {
+			return err;
+		}
+		if((set_wifi_state_(menu->ds_persistent, true))) {
+			return err;
+		}
 	}
 
 	return ESP_OK;
@@ -43,31 +96,16 @@ static esp_err_t set_wifi_state(struct menu* menu, struct menu_entry* entry, voi
 	esp_err_t err;
 	ssize_t len;
 	uint8_t state;
-	char* passwd;
 	struct datastore* ds = menu_get_datastore(menu, entry);
 
 	printf("Setting WiFi state\n");
 
 	if((len = datastore_load_inplace(ds, &state, sizeof(state), entry->entry_data.key, entry->entry_data.datatype)) < 0) {
 		err = -len;
-		goto fail;
+		return err;
 	}
 
-	if((err = datastore_load(ds, &passwd, "wifi.password", DATATYPE_STRING))) {
-		goto fail;
-	}
-
-	printf("Setting wifi state to %u\n", state);
-
-	if(state) {
-		err = wifi_ap_start(NAMETAG_SSID, passwd);
-	} else {
-		wifi_ap_stop();
-	}
-
-	free(passwd);
-fail:
-	return err;
+	return set_wifi_state_(menu->ds_persistent, state);
 }
 
 struct menu_entry menu_entries_0[] = {
@@ -92,7 +130,15 @@ struct menu_entry menu_entries_0[] = {
 		}
 	},
 	{
-		.name = "RESET PASSWD"
+		.name = "RESET PASSWD",
+		.entry_data = {
+			.key = "wifi.password",
+			.flags = {
+				.persistent = 1,
+				.suppress_editor = 1,
+			}
+		},
+		.select_cb = reset_wifi_password,
 	},
 	{ },
 };
