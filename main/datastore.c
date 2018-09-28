@@ -55,20 +55,22 @@ esp_err_t datastore_copy_kvpair(struct datastore_kvpair* dst, struct datastore_k
 
 	dst->datatype = src->datatype;
 
-	if((err = datastore_clone_value(&dst->value, src->value, src->datatype))) {
-		goto fail;
-	}
-
 	dst->key = strdup(src->key);
 	if(!dst->key) {
 		err = ESP_ERR_NO_MEM;
-		goto fail_value_alloc;
+		goto fail;
+	}
+
+	if(src->value) {
+		if((err = datastore_clone_value(&dst->value, src->value, src->datatype))) {
+			goto fail_key_alloc;
+		}
 	}
 
 	return ESP_OK;
 	
-fail_value_alloc:
-	free(dst->value);
+fail_key_alloc:
+	free(dst->key);
 fail:
 	return err;
 }
