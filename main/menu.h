@@ -29,6 +29,7 @@ struct menu_entry_data {
 	struct {
 		menu_entry_flag readonly:1;
 		menu_entry_flag persistent:1;
+		menu_entry_flag suppress_editor:1;
 	} flags;
 
 	int64_t min;

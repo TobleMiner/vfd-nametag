@@ -146,24 +146,25 @@ static esp_err_t menu_start_editor(struct ui* ui, struct menu* menu, struct menu
 esp_err_t menu_descend(struct ui* ui, struct menu_state* state) {
 	esp_err_t err;
 	struct menu* menu;
+	struct menu_entry* entry = state->current_entry;
 
 	if(menu_can_descend(state)) {
-		state->current_entry = &state->current_entry->entries[0];
+		state->current_entry = &entry->entries[0];
 		return ESP_OK;
 	}
 
 	menu = STATE_TO_MENU(state);
-	if(state->current_entry->entry_data.semantic_type) {
-		if((err = menu_select_entry_semantic(menu, state->current_entry))) {
+	if(entry->entry_data.semantic_type) {
+		if((err = menu_select_entry_semantic(menu, entry))) {
 			return err;
 		}
 	}
 
-	if(state->current_entry->select_cb) {
+	if(entry->select_cb) {
 		return state->current_entry->select_cb(menu, state->current_entry, NULL);
-	} else if(!state->current_entry->entry_data.semantic_type) {
+	} else if(!(entry->entry_data.semantic_type || entry->entry_data.flags.suppress_editor)) {
 		printf("Starting editor\n");
-		return menu_start_editor(ui, menu, state->current_entry);
+		return menu_start_editor(ui, menu, entry);
 	}
 
 	return ESP_OK;
