@@ -93,14 +93,16 @@ fail:
 	return err;
 }
 
+struct datastore* menu_get_datastore(struct menu* menu, struct menu_entry* entry) {
+	if(entry->entry_data.flags.persistent) {
+		return menu->ds_persistent;
+	}
+	return menu->ds_volatile;
+}
+
 static esp_err_t menu_select_entry_semantic(struct menu* menu, struct menu_entry* entry) {
 	esp_err_t err;
-	struct datastore* ds;
-
-	ds = menu->ds_volatile;
-	if(entry->entry_data.flags.persistent) {
-		ds = menu->ds_persistent;
-	}
+	struct datastore* ds = menu_get_datastore(menu, entry);
 
 	switch(entry->entry_data.semantic_type) {
 		case MENU_ENTRY_TYPE_ON_OFF: {
@@ -125,16 +127,11 @@ static esp_err_t menu_start_editor(struct ui* ui, struct menu* menu, struct menu
 	esp_err_t err;
 	struct value_editor_config conf;
 	struct value_editor* editor;
-	struct datastore* ds;
+	struct datastore* ds = menu_get_datastore(menu, entry);
 
 	conf.min = entry->entry_data.min;
 	conf.max = entry->entry_data.max;
 	conf.flags.readonly = entry->entry_data.flags.readonly;
-
-	ds = menu->ds_volatile;
-	if(entry->entry_data.flags.persistent) {
-		ds = menu->ds_persistent;
-	}
 
 	if((err = value_editor_alloc(&editor, &menu->ui_element, entry->entry_data.key, entry->entry_data.datatype, ds, &conf))) {
 		return err;

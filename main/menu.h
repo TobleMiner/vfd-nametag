@@ -78,6 +78,7 @@ struct menu {
 #define menu_can_ascend(state) (!!(state)->current_entry->parent->name)
 
 esp_err_t menu_alloc(struct menu** retval, struct ui* ui, struct menu_entry* root, struct datastore* ds_volatile, struct datastore* ds_persistent, menu_leave_cb leave_cb, void* priv);
+struct datastore* menu_get_datastore(struct menu* menu, struct menu_entry* entry);
 esp_err_t menu_descend(struct ui* ui, struct menu_state* state);
 esp_err_t menu_ascend(struct menu_state* state);
 esp_err_t menu_next(struct menu_state* state);
