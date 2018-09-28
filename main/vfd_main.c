@@ -12,6 +12,7 @@
 #include "encoder.h"
 #include "button.h"
 #include "wifi.h"
+#include "random.h"
 
 #define PIN_NUM_MISO 25
 #define PIN_NUM_MOSI 23
@@ -261,7 +262,12 @@ void app_main()
 {
 	esp_err_t err;
 
+	random_enable();
+
 	printf("Starting VFD name badge app\n");
+
+	err = wifi_init();
+	ESP_ERROR_CHECK(err);
 
 	printf("Initializing SPI...\n");
 	spi_bus_config_t buscfg = {
