@@ -67,10 +67,40 @@ struct menu_entry menu_entries_1[] = {
 		}
 	},
 	{
-		.name = "INT",
+		.name = "INT8",
+		.entry_data = {
+			.datatype = DATATYPE_INT8,
+			.key = "test.int8",
+			.flags = {
+				.readonly = 1,
+			}
+		}
+	},
+	{
+		.name = "INT16",
+		.entry_data = {
+			.datatype = DATATYPE_INT16,
+			.key = "test.int16",
+			.flags = {
+				.readonly = 1,
+			}
+		}
+	},
+	{
+		.name = "INT32",
 		.entry_data = {
 			.datatype = DATATYPE_INT32,
 			.key = "test.int32",
+			.flags = {
+				.readonly = 1,
+			}
+		}
+	},
+	{
+		.name = "INT64",
+		.entry_data = {
+			.datatype = DATATYPE_INT64,
+			.key = "test.int64",
 			.flags = {
 				.readonly = 1,
 			}
@@ -114,7 +144,10 @@ struct menu_entry main_menu = {
 };
 
 const int8_t ZERO = 0;
-const int32_t TESTVAL = 0x42424242;
+const int8_t TESTVAL8 = 0x42;
+const int16_t TESTVAL16 = 0x4242;
+const int32_t TESTVAL32 = 0x424242;
+const int64_t TESTVAL64 = 0x42424242;
 
 struct datastore_kvpair_default datastore_mem_defaults[] = {
 	{
@@ -152,11 +185,36 @@ struct datastore_kvpair_default datastore_mem_defaults[] = {
 			.datatype = DATATYPE_STRING,
 		},
 	},
-	{
-		.kvpair = {
+	{ 
+		.kvpair =
+		{
+			.key = "test.int8",
+			.value = &TESTVAL8,
+			.datatype = DATATYPE_INT8,
+		},
+	},
+	{ 
+		.kvpair =
+		{
+			.key = "test.int16",
+			.value = &TESTVAL16,
+			.datatype = DATATYPE_INT16,
+		},
+	},
+	{ 
+		.kvpair =
+		{
 			.key = "test.int32",
-			.value = &TESTVAL,
+			.value = &TESTVAL32,
 			.datatype = DATATYPE_INT32,
+		},
+	},
+	{ 
+		.kvpair =
+		{
+			.key = "test.int64",
+			.value = &TESTVAL64,
+			.datatype = DATATYPE_INT64,
 		},
 	},
 };
