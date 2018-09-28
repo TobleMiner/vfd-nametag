@@ -14,7 +14,6 @@ struct datastore_ops datastore_mem_ops = {
 
 struct datastore_def datastore_mem = {
 	.flags = 0,
-	.priv_flags = 0,
 	.ops = &datastore_mem_ops,
 };
 
