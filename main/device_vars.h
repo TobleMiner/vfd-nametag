@@ -1,0 +1,1 @@
+#define NAMETAG_SSID "VFD Nametag $DEVICE_SERIAL"
