@@ -11,6 +11,7 @@
 #include "userio.h"
 #include "encoder.h"
 #include "button.h"
+#include "wifi.h"
 
 #define PIN_NUM_MISO 25
 #define PIN_NUM_MOSI 23
@@ -18,6 +19,21 @@
 #define PIN_NUM_CS   22
 
 #define PIN_NUM_RST  18
+
+
+static esp_err_t generate_wifi_password(void** value, const char* key, int datatype, void* priv) {
+	if(datatype != DATATYPE_STRING) {
+		return ESP_ERR_INVALID_ARG;
+	}
+
+	*value = wifi_alloc_password(12);
+	if(!*value) {
+		return ESP_ERR_NO_MEM;
+	}
+
+	return ESP_OK;
+}
+
 
 struct menu_entry menu_entries_0[] = {
 	{
@@ -160,9 +176,9 @@ struct datastore_kvpair_default datastore_mem_defaults[] = {
 	{
 		.kvpair = {
 			.key = "wifi.password",
-			.value = "AU7BK1IOAM2F",
 			.datatype = DATATYPE_STRING,
 		},
+		.default_cb = generate_wifi_password,
 	},
 	{
 		.kvpair = {

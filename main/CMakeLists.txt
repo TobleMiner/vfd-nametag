@@ -8,6 +8,7 @@ set(COMPONENT_SRCS	"hcs_12SS59t.c"
 			"datatypes.c"
 			"value_editor.c"
 			"value_editor_render.c"
+			"wifi.c"
 			"vfd_main.c")
 
 set(COMPONENT_ADD_INCLUDEDIRS ".")
