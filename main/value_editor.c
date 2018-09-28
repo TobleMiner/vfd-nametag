@@ -66,5 +66,6 @@ fail:
 }
 
 void value_editor_free(struct value_editor* editor) {
+	free(editor->value);
 	free(editor);
 }
