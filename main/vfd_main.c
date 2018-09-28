@@ -6,6 +6,7 @@
 
 #include "hcs_12SS59t.h"
 #include "ui.h"
+#include "datastore.h"
 #include "menu.h"
 #include "menu_render.h"
 #include "userio.h"
@@ -13,6 +14,9 @@
 #include "button.h"
 #include "wifi.h"
 #include "random.h"
+#include "flash.h"
+
+#include "device_vars.h"
 
 #define PIN_NUM_MISO 25
 #define PIN_NUM_MOSI 23
@@ -35,6 +39,36 @@ static esp_err_t generate_wifi_password(void** value, const char* key, int datat
 	return ESP_OK;
 }
 
+static esp_err_t set_wifi_state(struct menu* menu, struct menu_entry* entry, void* priv) {
+	esp_err_t err;
+	ssize_t len;
+	uint8_t state;
+	char* passwd;
+	struct datastore* ds = menu_get_datastore(menu, entry);
+
+	printf("Setting WiFi state\n");
+
+	if((len = datastore_load_inplace(ds, &state, sizeof(state), entry->entry_data.key, entry->entry_data.datatype)) < 0) {
+		err = -len;
+		goto fail;
+	}
+
+	if((err = datastore_load(ds, &passwd, "wifi.password", DATATYPE_STRING))) {
+		goto fail;
+	}
+
+	printf("Setting wifi state to %u\n", state);
+
+	if(state) {
+		err = wifi_ap_start(NAMETAG_SSID, passwd);
+	} else {
+		wifi_ap_stop();
+	}
+
+	free(passwd);
+fail:
+	return err;
+}
 
 struct menu_entry menu_entries_0[] = {
 	{
@@ -43,7 +77,8 @@ struct menu_entry menu_entries_0[] = {
 			.datatype = DATATYPE_INT8,
 			.semantic_type = MENU_ENTRY_TYPE_ON_OFF,
 			.key = "wifi.enable",
-		}
+		},
+		.select_cb = set_wifi_state,
 	},
 	{
 		.name = "SHOW PASSWD",
@@ -71,7 +106,7 @@ struct menu_entry menu_entries_1[] = {
 			.flags = {
 				.readonly = 1,
 			}
-		}
+		},
 	},
 	{
 		.name = "STRING",
@@ -266,6 +301,9 @@ void app_main()
 
 	printf("Starting VFD name badge app\n");
 
+	err = flash_init();
+	ESP_ERROR_CHECK(err);
+
 	err = wifi_init();
 	ESP_ERROR_CHECK(err);
 
@@ -360,7 +398,7 @@ void app_main()
 	eq_data.userio = userio;
 	eq_data.ui = ui;
 
-	xTaskCreate(userio_event_loop, "userio_event_loop", 2048, &eq_data, 10, NULL);
+	xTaskCreate(userio_event_loop, "userio_event_loop", 8192, &eq_data, 10, NULL);
 
 	uint8_t brightness = 1;
 	uint8_t direction = 0;
