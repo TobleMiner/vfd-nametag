@@ -87,6 +87,7 @@ struct menu_entry menu_entries_0[] = {
 			.key = "wifi.password",
 			.flags = {
 				.readonly = 1,
+				.persistent = 1,
 			}
 		}
 	},
@@ -201,6 +202,16 @@ const int16_t TESTVAL16 = 0x4242;
 const int32_t TESTVAL32 = 0x424242;
 const int64_t TESTVAL64 = 0x42424242;
 
+struct datastore_kvpair_default datastore_nvs_defaults[] = {
+	{
+		.kvpair = {
+			.key = "wifi.password",
+			.datatype = DATATYPE_STRING,
+		},
+		.default_cb = generate_wifi_password,
+	},
+};
+
 struct datastore_kvpair_default datastore_mem_defaults[] = {
 	{
 		.kvpair = {
@@ -208,13 +219,6 @@ struct datastore_kvpair_default datastore_mem_defaults[] = {
 			.value = &ZERO,
 			.datatype = DATATYPE_INT8,
 		},
-	},
-	{
-		.kvpair = {
-			.key = "wifi.password",
-			.datatype = DATATYPE_STRING,
-		},
-		.default_cb = generate_wifi_password,
 	},
 	{
 		.kvpair = {
@@ -337,42 +341,20 @@ void app_main()
 	err = ui_alloc(&ui, disp);
 	ESP_ERROR_CHECK(err);
 
-	printf("Allocating datastore...\n");
-	struct datastore* ds;
-	err = datastore_alloc(&ds, 0, datastore_mem_defaults, ARRAY_LEN(datastore_mem_defaults));
+	printf("Allocating volatile datastore...\n");
+	struct datastore* ds_volatile;
+	err = datastore_alloc(&ds_volatile, 0, datastore_mem_defaults, ARRAY_LEN(datastore_mem_defaults));
 	ESP_ERROR_CHECK(err);
-	printf("Datastore allocated\n");
+	printf("Volatile datastore allocated\n");
 
-	printf("Adding values to datastore...\n");
-	err = datastore_store(ds, "Hello World!", "test", DATATYPE_STRING);
+	printf("Allocating persistent datastore...\n");
+	struct datastore* ds_persistent;
+	err = datastore_alloc(&ds_persistent, DATASTORE_FLAG_PERSISTENT, datastore_nvs_defaults, ARRAY_LEN(datastore_nvs_defaults));
 	ESP_ERROR_CHECK(err);
-
-	int32_t intval = 0x42424242;
-	err = datastore_store(ds, &intval, "test.int", DATATYPE_INT32);
-	ESP_ERROR_CHECK(err);
-	printf("Values added\n");
-
-	printf("Reading back values from datastore...\n");
-	char* strval = NULL;
-	int32_t* intvalp = NULL;
-
-	err = datastore_load(ds, (void**)&strval, "test", DATATYPE_STRING);
-	ESP_ERROR_CHECK(err);
-
-	printf("Read back key test as '%s'\n", strval ? strval : "NULL");
-
-	err = datastore_load(ds, (void**)&intvalp, "test.int", DATATYPE_INT32);
-	ESP_ERROR_CHECK(err);
-
-	printf("Read back key test.int as '%d'\n", intvalp ? *intvalp : 0);
-
-	err = datastore_load(ds, (void**)&strval, "default.test", DATATYPE_STRING);
-	ESP_ERROR_CHECK(err);
-
-	printf("Read back key default.test as '%s'\n", strval ? strval : "NULL");
+	printf("Persistent datastore allocated\n");
 
 	struct menu* menu;
-	err = menu_alloc(&menu, ui, &main_menu, ds, ds, NULL, NULL);
+	err = menu_alloc(&menu, ui, &main_menu, ds_volatile, ds_persistent, NULL, NULL);
 	ESP_ERROR_CHECK(err);
 
 	ui_add_element(&menu->ui_element, ui);
