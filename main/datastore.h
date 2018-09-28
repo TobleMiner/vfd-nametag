@@ -47,16 +47,10 @@ struct datastore_priv_ops {
 
 typedef uint8_t datastore_flags;
 
-#define DATASTORE_FLAG_PERSISTENT 0b01;
-
-typedef uint8_t datastore_priv_flags;
-
-#define DATASTORE_FLAG_CACHED 0b01;
+#define DATASTORE_FLAG_PERSISTENT 0b01
 
 struct datastore_def {
 	uint8_t flags;
-
-	uint8_t priv_flags;
 
 	struct datastore_ops* ops;
 };
@@ -68,9 +62,6 @@ struct datastore_entry {
 
 struct datastore {
 	struct datastore_def* def;
-
-	/* List of struct datastore_entry */
-	struct list_head cache;
 
 	struct datastore_kvpair_default* defaults;
 	size_t num_defaults;

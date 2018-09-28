@@ -79,7 +79,6 @@ esp_err_t datastore_init(struct datastore* ds, struct datastore_def* def, struct
 	esp_err_t err;
 
 	ds->def = def;
-	INIT_LIST_HEAD(ds->cache);
 
 	if(len) {
 		ds->defaults = calloc(len, sizeof(struct datastore_kvpair_default));
@@ -124,8 +123,6 @@ void datastore_free(struct datastore* ds) {
 		free(kvpair->value);	
 	}
 	free(ds->defaults);
-
-	// TODO free cache contents
 }
 
 static esp_err_t datastore_load_default(struct datastore* ds, void** value, const char* key, int datatype) {
