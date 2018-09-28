@@ -8,9 +8,11 @@
 #include "datastore.h"
 
 extern struct datastore_def datastore_mem;
+extern struct datastore_def datastore_nvs;
 
 struct datastore_def* datastore_defs[] = {
-	&datastore_mem
+	&datastore_mem,
+	&datastore_nvs
 };
 
 esp_err_t datastore_alloc(struct datastore** retval, datastore_flags flags, struct datastore_kvpair_default* defaults, size_t len) {
@@ -106,12 +108,7 @@ esp_err_t datastore_init(struct datastore* ds, struct datastore_def* def, struct
 	return ESP_OK;
 
 fail_defaults:
-	while(ds->num_defaults-- > 0) {
-		struct datastore_kvpair* kvpair = &ds->defaults[ds->num_defaults].kvpair;
-		free(kvpair->key);
-		free(kvpair->value);	
-	}
-	free(ds->defaults);
+	datastore_free(ds);
 fail:
 	return err;
 }

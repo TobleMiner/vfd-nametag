@@ -74,6 +74,7 @@ esp_err_t datastore_clone_value(void** retval, void* src, int datatype);
 esp_err_t datastore_init(struct datastore* ds, struct datastore_def* def, struct datastore_kvpair_default* defaults, size_t len);
 
 esp_err_t datastore_alloc(struct datastore** retval, datastore_flags flags, struct datastore_kvpair_default* defaults, size_t len);
+void datastore_free(struct datastore* ds);
 esp_err_t datastore_load(struct datastore* ds, void** value, const char* key, int datatype);
 ssize_t datastore_load_inplace(struct datastore* ds, void* value, size_t len, const char* key, int datatype);
 
