@@ -18,6 +18,7 @@ struct wifi {
 	EventGroupHandle_t event_group;
 };
 
+bool wifi_enabled();
 esp_err_t wifi_init(void);
 esp_err_t wifi_ap_start(char* ssid, char* password);
 esp_err_t wifi_ap_stop();

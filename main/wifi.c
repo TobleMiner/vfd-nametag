@@ -19,6 +19,10 @@ static esp_err_t wifi_event_handler(void* priv, system_event_t* event) {
 	return ESP_OK;
 }
 
+bool wifi_enabled() {
+	return !!wifi.enabled;
+}
+
 esp_err_t wifi_init(void) {
 	esp_err_t err;
 	
