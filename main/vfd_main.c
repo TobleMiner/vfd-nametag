@@ -84,7 +84,7 @@ static esp_err_t reset_wifi_password(struct menu* menu, struct menu_entry* entry
 		if((err = set_wifi_state_(menu->ds_persistent, false))) {
 			return err;
 		}
-		if((set_wifi_state_(menu->ds_persistent, true))) {
+		if((err = set_wifi_state_(menu->ds_persistent, true))) {
 			return err;
 		}
 	}
