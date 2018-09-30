@@ -51,6 +51,8 @@ esp_err_t menu_alloc(struct menu** retval, struct ui* ui, struct menu_entry* roo
 		goto fail;
 	}
 
+	menu->ui = ui;
+
 	menu->ds_volatile = ds_volatile;
 	menu->ds_persistent = ds_persistent;
 

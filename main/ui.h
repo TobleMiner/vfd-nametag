@@ -19,6 +19,8 @@ struct ui {
 	struct list_head ui_elements;
 
 	struct ui_element* active_element;
+
+	TickType_t last_animate_tick;
 };
 
 struct ui_element_ops {
@@ -28,7 +30,7 @@ struct ui_element_ops {
 struct ui_element_render;
 
 struct ui_element_render_ops {
-	esp_err_t (*render)(struct ui_element_render* render, struct ui_element* elem, struct display* disp);
+	esp_err_t (*render)(struct ui_element_render* render, struct ui_element* elem, struct display* disp, TickType_t last_tick, TickType_t ticks);
 };
 
 struct ui_element_def;
@@ -76,9 +78,12 @@ inline esp_err_t ui_action_performed(struct ui* ui, userio_action action) {
 #define ui_set_active_element(ui, elem) \
 	(ui)->active_element = elem;
 
+#define ui_get_active_element(ui) \
+	((ui)->active_element)
+
 esp_err_t ui_alloc(struct ui** retval, struct display* disp);
 void ui_element_init(struct ui_element* elem, struct ui_element_def* def);
 void ui_element_render_init(struct ui_element_render* render, struct ui_element_render_ops* ops);
-esp_err_t ui_do_render(struct ui* ui);
+esp_err_t ui_do_render(struct ui* ui, TickType_t ticks);
 
 #endif

@@ -15,6 +15,7 @@
 #include "wifi.h"
 #include "random.h"
 #include "flash.h"
+#include "modal_wait.h"
 
 #include "device_vars.h"
 
@@ -42,20 +43,28 @@ static esp_err_t generate_wifi_password(void** value, const char* key, int datat
 	return generate_wifi_password_(value);
 }
 
-static esp_err_t set_wifi_state_(struct datastore* ds, bool state) {
+static esp_err_t set_wifi_state_(struct ui* ui, struct datastore* ds, bool state) {
 	esp_err_t err = ESP_OK;
 
 	printf("Setting wifi state to %u\n", (unsigned)state);
 
 	if(state) {
 		char* passwd;
+		struct modal_wait* modal_wait = NULL;
 
 		if((err = datastore_load(ds, &passwd, "wifi.password", DATATYPE_STRING))) {
 			goto fail;
 		}
 
+		if(!(err = modal_wait_alloc(&modal_wait, "Enabling", ui_get_active_element(ui)))) {
+			modal_wait_show(modal_wait, ui);
+		}
+
 		err = wifi_ap_start(NAMETAG_SSID, passwd);
 
+		if(modal_wait) {
+			modal_wait_free(modal_wait, ui);
+		}
 		free(passwd);
 	} else {
 		wifi_ap_stop();
@@ -81,10 +90,10 @@ static esp_err_t reset_wifi_password(struct menu* menu, struct menu_entry* entry
 	}
 
 	if(wifi_enabled()) {
-		if((err = set_wifi_state_(menu->ds_persistent, false))) {
+		if((err = set_wifi_state_(menu->ui, menu->ds_persistent, false))) {
 			return err;
 		}
-		if((err = set_wifi_state_(menu->ds_persistent, true))) {
+		if((err = set_wifi_state_(menu->ui, menu->ds_persistent, true))) {
 			return err;
 		}
 	}
@@ -105,7 +114,7 @@ static esp_err_t set_wifi_state(struct menu* menu, struct menu_entry* entry, voi
 		return err;
 	}
 
-	return set_wifi_state_(menu->ds_persistent, state);
+	return set_wifi_state_(menu->ui, menu->ds_persistent, state);
 }
 
 struct menu_entry menu_entries_0[] = {
@@ -210,7 +219,7 @@ struct menu_entry menu_entries_1[] = {
 
 struct menu_entry menu_entries_2[] = {
 	{
-		.name = "menu20"
+		.name = "\x80\x81\x82\x83\x84\x85\x86\x87"
 	},
 	{
 		.name = "menu21"
@@ -231,7 +240,7 @@ struct menu_entry menu_entries_main[] = {
 		.entries = menu_entries_1,
 	},
 	{
-		.name = "menu2",
+		.name = "CHAR TESTS",
 		.entries = menu_entries_2,
 	},
 	{ },
@@ -443,7 +452,7 @@ void app_main()
 				direction = 1;
 			}
 		}
-		ui_do_render(ui);
+		ui_do_render(ui, xTaskGetTickCount());
 //		display_text_display(disp, menu_current_name(&menu->state));
 		display_set_brightness(disp, brightness);
 

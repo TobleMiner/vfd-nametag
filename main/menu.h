@@ -65,6 +65,8 @@ struct menu {
 	menu_leave_cb leave_cb;
 	void* leave_cb_priv;
 
+	struct ui* ui;
+
 	struct menu_entry* root;
 	struct datastore* ds_volatile;
 	struct datastore* ds_persistent;

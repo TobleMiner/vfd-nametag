@@ -41,24 +41,28 @@ static struct ui_element_render* ui_element_find_render(struct ui_element* elem,
 	return NULL;
 }
 
-static esp_err_t ui_element_do_render(struct ui_element* elem, struct display* disp) {
+static esp_err_t ui_element_do_render(struct ui_element* elem, struct display* disp, TickType_t last_animate_tick, TickType_t ticks) {
 	struct ui_element_render* render = ui_element_find_render(elem, disp);
 	if(!render) {
 		return ESP_ERR_NOT_SUPPORTED;
 	}
 
-	return render->ops->render(render, elem, disp);
+	return render->ops->render(render, elem, disp, last_animate_tick, ticks);
 }
 
-esp_err_t ui_do_render(struct ui* ui) {
+esp_err_t ui_do_render(struct ui* ui, TickType_t ticks) {
+	esp_err_t err;
 	if(!ui->active_element) {
 		return ESP_ERR_INVALID_STATE;
 	}
 
 /* TODO: Honor render required flag
+	esp_err_t err;
 	if(!ui->active_element->needs_render) {
 		return ESP_OK;
 	}
 */
-	return ui_element_do_render(ui->active_element, ui->disp);
+	err = ui_element_do_render(ui->active_element, ui->disp, ui->last_animate_tick, ticks);
+	ui->last_animate_tick = ticks;
+	return err;
 }

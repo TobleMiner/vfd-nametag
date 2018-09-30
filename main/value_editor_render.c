@@ -1,4 +1,5 @@
-#include "string.h"
+#include <stdlib.h>
+#include <string.h>
 
 #include "esp_err.h"
 
@@ -71,7 +72,7 @@ fail:
 	return err;
 }
 
-esp_err_t value_editor_text_render(struct ui_element_render* render, struct ui_element* elem, struct display* disp) {
+esp_err_t value_editor_text_render(struct ui_element_render* render, struct ui_element* elem, struct display* disp, TickType_t last_animate_tick, TickType_t ticks) {
 	struct value_editor* editor = UI_ELEMENT_TO_VALUE_EDITOR(elem);
 	switch(editor->datatype) {
 		case DATATYPE_STRING:

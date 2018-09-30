@@ -12,7 +12,7 @@
 #define UI_ELEM_TO_MENU(elem) \
 	container_of((elem), struct menu, ui_element)
 
-esp_err_t menu_render_render(struct ui_element_render* render, struct ui_element* elem, struct display* disp) {
+esp_err_t menu_render_render(struct ui_element_render* render, struct ui_element* elem, struct display* disp, TickType_t last_animate_tick, TickType_t ticks) {
 	esp_err_t err;
 	struct menu* menu = UI_ELEM_TO_MENU(elem);
 	struct menu_entry* entry = menu->state.current_entry;
