@@ -16,6 +16,8 @@ struct display_ops_text {
 	esp_err_t (*display)(struct display* disp, char* str);
 	esp_err_t (*display_bin)(struct display* disp, char* str, size_t len);
 	esp_err_t (*define_char)(struct display* disp, char id, void* data);
+	size_t (*get_spinner_char_cnt)(struct display* disp);
+	char (*get_spinner_char)(struct display* disp, size_t index);
 };
 
 struct display {
@@ -32,5 +34,7 @@ struct display {
 #define display_text_display(disp, str) ((disp)->text_ops.display((disp), (str)))
 #define display_text_display_bin(disp, str, len) ((disp)->text_ops.display_bin((disp), (blank), (len)))
 #define display_text_define_char(disp, id, data) ((disp)->text_ops.define_char((disp), (id), (data)))
+#define display_text_get_spinner_char_cnt(disp) ((disp)->text_ops.get_spinner_char_cnt((disp)))
+#define display_text_get_spinner_char(disp, index) ((disp)->text_ops.get_spinner_char((disp), (index)))
 
 #endif

@@ -48,6 +48,7 @@ struct hcs_xlate_entry hcs_xlate_table[] = {
 	{'@', '_', -48},
 	{' ', '?', 16},
 	{'a', 'z', -80},
+	{0x80, 0x87, -40},
 	{0, 0, 0}
 };
 
@@ -105,6 +106,16 @@ esp_err_t hcs_get_display_width(struct display* disp, size_t* width) {
 	return ESP_OK;
 }
 
+static size_t hcs_get_spinner_char_cnt(struct display* disp) {
+	(void)disp;
+	return 8;
+}
+
+static char hcs_get_spinner_char(struct display* disp, size_t index) {
+	(void)disp;
+	return (char)(0x80 + index);
+}
+
 void hcs_free(struct display* disp) {
 	struct hcs_12SS59t* hcs = DISP_TO_HCS(disp);
 	spi_bus_remove_device(hcs->spi_dev);
@@ -120,6 +131,8 @@ const struct display_ops_text hcs_text_ops = {
 	.get_width = hcs_get_display_width,
 	.display = hcs_display,
 	.display_bin = hcs_display_bin,
+	.get_spinner_char_cnt = hcs_get_spinner_char_cnt,
+	.get_spinner_char = hcs_get_spinner_char,
 };
 
 esp_err_t hcs_alloc(struct display** retval, spi_host_device_t spi_phy, gpio_num_t gpio_cs, gpio_num_t gpio_reset) {
