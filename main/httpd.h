@@ -9,7 +9,7 @@
 
 struct httpd {
 	httpd_handle_t server;
-	const char* webroot;
+	char* webroot;
 
 	struct list_head static_file_handlers;
 };
@@ -24,6 +24,6 @@ esp_err_t httpd_alloc(struct httpd** retval, const char* webroot);
 esp_err_t __httpd_add_static_path(struct httpd* httpd, char* dir, char* name);
 
 #define httpd_add_static_path(httpd, path) \
-	__httpd_add_static_path(httpd, (httpd)->webroot, path)
+	__httpd_add_static_path(httpd, NULL, path)
 
 #endif

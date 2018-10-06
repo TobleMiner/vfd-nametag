@@ -382,10 +382,10 @@ void app_main()
 	ESP_ERROR_CHECK(err);
 
 	struct httpd* httpd;
-	err = httpd_alloc(&httpd, NULL);
+	err = httpd_alloc(&httpd, "/flash/srv/http");
 	ESP_ERROR_CHECK(err);
 
-	err = httpd_add_static_path(httpd, "/flash");
+	err = httpd_add_static_path(httpd, "/flash/srv/http");
 	ESP_ERROR_CHECK(err);
 
 	printf("Initializing SPI...\n");
