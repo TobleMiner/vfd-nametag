@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-#define RANDOM_HEADERS_AVAIL 0
+#define RANDOM_HEADERS_AVAIL 1
 
 struct random {
 	bool initialized;

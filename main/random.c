@@ -1,13 +1,13 @@
 #include <stdint.h>
 
-#if RANDOM_HEADERS_AVAIL
-#include <bootloader_random.h>
-#endif
-
 #include "esp_err.h"
 
 #include "random.h"
 #include "wifi.h"
+
+#if RANDOM_HEADERS_AVAIL
+#include <bootloader_random.h>
+#endif
 
 extern struct wifi wifi;
 
