@@ -339,7 +339,13 @@ esp_err_t __httpd_add_static_path(struct httpd* httpd, char* dir, char* name) {
 	}
 
 	if(err) {
-		// TODO: Free all handlers
+		struct list_head* cursor;
+		LIST_FOR_EACH(cursor, &httpd->static_file_handlers) {
+			struct httpd_handler* hndlr = LIST_GET_ENTRY(cursor, struct httpd_handler, list);
+			if(hndlr->ops->free) {
+				hndlr->ops->free(hndlr);
+			}
+		}
 	}
 
 fail_alloc:
