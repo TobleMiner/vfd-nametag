@@ -27,3 +27,6 @@
 
 						
 #define ARRAY_LEN(_arr) (sizeof((_arr)) / sizeof(*(_arr)))
+
+#define DIRENT_FOR_EACH(cursor, dir) \
+	for((cursor) = readdir((dir)); (cursor); (cursor) = readdir((dir)))
