@@ -388,6 +388,9 @@ void app_main()
 	err = httpd_add_static_path(httpd, "/flash/srv/http");
 	ESP_ERROR_CHECK(err);
 
+	err = httpd_add_redirect(httpd, "/", "/index.html");
+	ESP_ERROR_CHECK(err);
+
 	printf("Initializing SPI...\n");
 	spi_bus_config_t buscfg = {
 		.miso_io_num = PIN_NUM_MISO,

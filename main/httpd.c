@@ -203,6 +203,89 @@ fail:
 	return err;
 }
 
+
+#define HTTPD_HANDLER_TO_HTTPD_REDIRECT_HANDER(hndlr) \
+	container_of((hndlr), struct httpd_redirect_handler, handler)
+
+static void httpd_free_redirect_handler(struct httpd_handler* hndlr) {
+	struct httpd_redirect_handler* hndlr_redirect = HTTPD_HANDLER_TO_HTTPD_REDIRECT_HANDER(hndlr);
+	free(hndlr_redirect->location);
+	// Allthough uri_handler.uri is declared const we use it with dynamically allocated memory
+	free((char*)hndlr->uri_handler.uri);
+}
+
+struct httpd_handler_ops httpd_redirect_handler_ops = {
+	.free = httpd_free_redirect_handler,
+};
+
+static esp_err_t redirect_handler(httpd_req_t* req) {
+	esp_err_t err;
+	struct httpd_redirect_handler* hndlr = req->user_ctx;
+
+	if((err = httpd_resp_set_status(req, HTTPD_302))) {
+		goto fail;
+	}
+
+	if((err = httpd_resp_set_hdr(req, "Location", hndlr->location))) {
+		goto fail;
+	}
+	
+	printf("httpd: Delivering redirect to %s\n", hndlr->location);
+
+	httpd_resp_send_chunk(req, NULL, 0);
+
+fail:
+	return err;
+}
+
+esp_err_t httpd_add_redirect(struct httpd* httpd, char* from, char* to) {
+	esp_err_t err;
+	char* uri;
+	struct httpd_redirect_handler* hndlr = calloc(1, sizeof(struct httpd_redirect_handler));
+	if(!hndlr) {
+		err = ESP_ERR_NO_MEM;
+		goto fail;
+	}
+
+	hndlr->location = strdup(to);
+	if(!hndlr->location) {
+		err = ESP_ERR_NO_MEM;
+		goto fail_alloc;
+	}
+
+	uri = strdup(from);
+	if(!uri) {
+		err = ESP_ERR_NO_MEM;
+		goto fail_path_alloc;
+	}
+
+	hndlr->handler.uri_handler.uri = uri;
+	hndlr->handler.uri_handler.method = HTTP_GET;
+	hndlr->handler.uri_handler.handler = redirect_handler;
+	hndlr->handler.uri_handler.user_ctx = hndlr;
+
+	hndlr->handler.ops = &httpd_redirect_handler_ops;
+
+	printf("httpd: Registering redirect handler at '%s' for location '%s'\n", from, to);
+
+	if((err = httpd_register_uri_handler(httpd->server, &hndlr->handler.uri_handler))) {
+		goto fail_uri_alloc;
+	}
+
+	LIST_APPEND(&hndlr->handler.list, &httpd->static_file_handlers);
+
+	return ESP_OK;
+
+fail_uri_alloc:
+	free(uri);
+fail_path_alloc:
+	free(hndlr->location);
+fail_alloc:
+	free(hndlr);
+fail:
+	return err;
+}
+
 static esp_err_t httpd_add_static_directory(struct httpd* httpd, char* path) {
 	esp_err_t err;
 	struct dirent* cursor;
