@@ -32,18 +32,12 @@ esp_err_t wifi_init(void) {
 		goto fail;
 	}
 
-	if((err = tcpip_adapter_init())) {
-		goto fail_event_group;
-	}
-
 	if((err = esp_event_loop_init(wifi_event_handler, NULL))) {
-		goto fail_adapter_init;
+		goto fail_event_group;
 	}
 
 	return ESP_OK;
 
-fail_adapter_init:
-	// There is nothing we can do here
 fail_event_group:
 	vEventGroupDelete(wifi.event_group);
 fail:
