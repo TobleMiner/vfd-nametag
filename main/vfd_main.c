@@ -4,6 +4,8 @@
 #include "esp_system.h"
 #include "esp_spi_flash.h"
 
+#include "rom/spi_flash.h"
+
 #include "hcs_12SS59t.h"
 #include "ui.h"
 #include "datastore.h"
@@ -16,8 +18,12 @@
 #include "random.h"
 #include "flash.h"
 #include "modal_wait.h"
+#include "ip.h"
+#include "httpd.h"
 
 #include "device_vars.h"
+
+extern esp_rom_spiflash_chip_t g_rom_flashchip;
 
 #define PIN_NUM_MISO 25
 #define PIN_NUM_MOSI 23
@@ -360,10 +366,26 @@ void app_main()
 
 	printf("Starting VFD name badge app\n");
 
-	err = flash_init();
+	err = flash_nvs_init();
+	ESP_ERROR_CHECK(err);
+
+	err = ip_stack_init();
 	ESP_ERROR_CHECK(err);
 
 	err = wifi_init();
+	ESP_ERROR_CHECK(err);
+
+	printf("Flash params: page size: %u, sector size: %u\n", g_rom_flashchip.page_size, g_rom_flashchip.sector_size);
+
+	struct fatfs* fs;
+	err = flash_fatfs_alloc(&fs, "storage", "/flash");
+	ESP_ERROR_CHECK(err);
+
+	struct httpd* httpd;
+	err = httpd_alloc(&httpd, NULL);
+	ESP_ERROR_CHECK(err);
+
+	err = httpd_add_static_path(httpd, "/flash");
 	ESP_ERROR_CHECK(err);
 
 	printf("Initializing SPI...\n");
