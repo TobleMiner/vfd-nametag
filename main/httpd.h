@@ -15,13 +15,24 @@ struct httpd {
 	httpd_handle_t server;
 	char* webroot;
 
-	struct list_head static_file_handlers;
+	struct list_head handlers;
+	struct list_head templates;
 };
 
 struct httpd_handler;
 
 struct httpd_handler_ops {
 	void (*free)(struct httpd_handler* hndlr);
+};
+
+struct httpd_template_callback;
+
+typedef esp_err_t (*template_cb)(struct httpd* httpd, httpd_req_t* request, struct httpd_template_callback* cb);
+
+struct httpd_template_callback {
+	void* priv;
+	char* key;
+	template_cb template_cb;
 };
 
 struct httpd_handler {
