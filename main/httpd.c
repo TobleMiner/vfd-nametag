@@ -136,12 +136,24 @@ static esp_err_t httpd_relpath(char* path, char* basepath) {
 	return ESP_OK;
 }
 
+#define HTTPD_HANDLER_TO_HTTPD_STATIC_FILE_HANDER(hndlr) \
+	container_of((hndlr), struct httpd_static_file_handler, handler)
+
+static void httpd_free_static_file_handler(struct httpd_handler* hndlr) {
+	struct httpd_static_file_handler* hndlr_static_file = HTTPD_HANDLER_TO_HTTPD_STATIC_FILE_HANDER(hndlr);
+	free(hndlr_static_file->path);
+	// Allthough uri_handler.uri is declared const we use it with dynamically allocated memory
+	free((char*)hndlr->uri_handler.uri);
+}
+
+struct httpd_handler_ops httpd_static_file_handler_ops = {
+	.free = httpd_free_static_file_handler,
+};
+
 static esp_err_t httpd_add_static_file(struct httpd* httpd, char* path) {
 	esp_err_t err;
-	struct httpd_static_file_handler* hndlr;
 	char* uri;
-
-	hndlr = calloc(1, sizeof(struct httpd_static_file_handler));
+	struct httpd_static_file_handler* hndlr = calloc(1, sizeof(struct httpd_static_file_handler));
 	if(!hndlr) {
 		err = ESP_ERR_NO_MEM;
 		goto fail;
@@ -164,18 +176,20 @@ static esp_err_t httpd_add_static_file(struct httpd* httpd, char* path) {
 		goto fail_uri_alloc;
 	}
 
-	hndlr->uri_handler.uri = uri;
-	hndlr->uri_handler.method = HTTP_GET;
-	hndlr->uri_handler.handler = static_file_get_handler;
-	hndlr->uri_handler.user_ctx = hndlr;
+	hndlr->handler.uri_handler.uri = uri;
+	hndlr->handler.uri_handler.method = HTTP_GET;
+	hndlr->handler.uri_handler.handler = static_file_get_handler;
+	hndlr->handler.uri_handler.user_ctx = hndlr;
+
+	hndlr->handler.ops = &httpd_static_file_handler_ops;
 
 	printf("httpd: Registering static file handler at '%s' for file '%s'\n", uri, path);
 
-	if((err = httpd_register_uri_handler(httpd->server, &hndlr->uri_handler))) {
+	if((err = httpd_register_uri_handler(httpd->server, &hndlr->handler.uri_handler))) {
 		goto fail_uri_alloc;
 	}
 
-	LIST_APPEND(&hndlr->list, &httpd->static_file_handlers);
+	LIST_APPEND(&hndlr->handler.list, &httpd->static_file_handlers);
 
 	return ESP_OK;
 

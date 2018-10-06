@@ -14,10 +14,21 @@ struct httpd {
 	struct list_head static_file_handlers;
 };
 
-struct httpd_static_file_handler {
+struct httpd_handler;
+
+struct httpd_handler_ops {
+	void (*free)(struct httpd_handler* hndlr);
+};
+
+struct httpd_handler {
 	struct list_head list;
-	char* path;
 	httpd_uri_t uri_handler;
+	struct httpd_handler_ops* ops;
+};
+
+struct httpd_static_file_handler {
+	struct httpd_handler handler;
+	char* path;
 };
 
 esp_err_t httpd_alloc(struct httpd** retval, const char* webroot);
