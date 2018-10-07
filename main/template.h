@@ -1,6 +1,8 @@
 #ifndef _TEMPLATE_H_
 #define _TEMPLATE_H_
 
+#include "esp_err.h"
+
 #include "list.h"
 
 #define TEMPLATE_ID_LEN_DEFAULT 16
@@ -14,10 +16,10 @@ struct templ {
 };
 
 // priv comes from templ_entry struct, ctx from current execution
-typedef (*templ_cb)(void* ctx, void* priv);
+typedef esp_err_t (*templ_cb)(void* ctx, void* priv);
 
 struct templ_entry {
-	list_head list;
+	struct list_head list;
 
 	char* id;
 	void* priv;
@@ -26,21 +28,24 @@ struct templ_entry {
 
 struct templ_instance {
 	struct list_head slices;
-}:
+};
 
 struct templ_slice {
-	list_head list;
+	struct list_head list;
 
 	size_t start;
 	size_t end;
 	struct templ_entry* entry;
 };
 
-typedef (*templ_write_cb)(void* ctx, char* buff, size_t* len);
+typedef esp_err_t (*templ_write_cb)(void* ctx, char* buff, size_t* len);
 
 void template_init(struct templ* templ);
-esp_err_t template_alloc_instance(struct templ_instance** retval, struct templ* templ, int fd);
+void template_free_instance(struct templ_instance* instance);
+esp_err_t template_alloc_instance(struct templ_instance** retval, struct templ* templ, char* path);
+esp_err_t template_alloc_instance_fd(struct templ_instance** retval, struct templ* templ, int fd);
 esp_err_t template_add(struct templ* templ, char* id, templ_cb cb, void* priv);
-esp_err_t template_apply(struct templ_instance* instance, int fd, templ_write_cb cb, void* ctx);
+esp_err_t template_apply(struct templ_instance* instance, char* path, templ_write_cb cb, void* ctx);
+esp_err_t template_apply_fd(struct templ_instance* instance, int fd, templ_write_cb cb, void* ctx);
 
 #endif

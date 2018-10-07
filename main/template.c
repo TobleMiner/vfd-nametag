@@ -1,8 +1,9 @@
 #include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
 #include <errno.h>
 #include <unistd.h>
-#include <fnctl.h>
-#include <stdbool.h>
+#include <fcntl.h>
 
 #include "esp_err.h"
 
@@ -24,9 +25,36 @@ static esp_err_t template_alloc_slice(struct templ_slice** retval) {
 	return ESP_OK;
 }
 
-esp_err_t template_alloc_instance(struct templ_instance** retval, struct templ* templ, int fd) {
+void template_free_instance(struct templ_instance* instance) {
+	struct list_head* cursor;
+
+	LIST_FOR_EACH(cursor, &instance->slices) {
+		struct templ_slice* slice = LIST_GET_ENTRY(cursor, struct templ_slice, list);
+		free(slice);
+	}
+	free(instance);
+}
+
+esp_err_t template_alloc_instance(struct templ_instance** retval, struct templ* templ, char* path) {
+	esp_err_t err;
+	int fd = open(path, O_RDONLY);
+	if(fd < 0) {
+		err = errno;
+		goto fail;
+	}
+
+	err = template_alloc_instance_fd(retval, templ, fd);
+
+	close(fd);
+
+fail:
+	return err;
+};
+
+esp_err_t template_alloc_instance_fd(struct templ_instance** retval, struct templ* templ, int fd) {
 	esp_err_t err;
 	size_t max_id_len = TEMPLATE_ID_LEN_DEFAULT, filepos = 0;
+	ssize_t read_len = 0;
 	struct templ_slice* slice;
 	struct ring* ring;
 	struct list_head* cursor;
@@ -36,7 +64,7 @@ esp_err_t template_alloc_instance(struct templ_instance** retval, struct templ* 
 		goto fail;
 	}
 
-	LIST_HEAD_INIT(instance->slices);
+	INIT_LIST_HEAD(instance->slices);
 
 	LIST_FOR_EACH(cursor, &templ->templates) {
 		struct templ_entry* entry = LIST_GET_ENTRY(cursor, struct templ_entry, list);
@@ -53,7 +81,7 @@ esp_err_t template_alloc_instance(struct templ_instance** retval, struct templ* 
 	LIST_APPEND(&slice->list, &instance->slices);
 
 	do {
-		ssize_t read_len = read(fd, ring->ptr_write, ring_free_space_contig(ring));
+		read_len = read(fd, ring->ptr_write, ring_free_space_contig(ring));
 		if(read_len < 0) {
 			err = errno;
 			goto fail_slices;
@@ -61,12 +89,12 @@ esp_err_t template_alloc_instance(struct templ_instance** retval, struct templ* 
 		ring_advance_write(ring, read_len);
 
 next:
-		while(ring_availabel(ring) >= (read_len == 0 ? 0 : max_template_len)) {
+		while(ring_available(ring) >= (read_len == 0 ? 0 : max_id_len)) {
 			LIST_FOR_EACH(cursor, &templ->templates) {
 				struct templ_slice* prev_slice;
 				struct templ_entry* entry = LIST_GET_ENTRY(cursor, struct templ_entry, list);
 				size_t id_len = strlen(entry->id);
-				if(!ring_memcmp(ring, entry->id, id_len) {
+				if(!ring_memcmp(ring, entry->id, id_len, NULL)) {
 					slice->end = filepos;
 
 					prev_slice = slice;
@@ -95,6 +123,7 @@ next:
 		}
 	} while(read_len);
 	slice->end = filepos;
+	ring_free(ring);
 
 	*retval = instance;
 	return ESP_OK;
@@ -141,38 +170,55 @@ fail:
 	return err;
 }
 
-esp_err_t template_apply(struct templ_instance* instance, int fd, templ_write_cb cb, void* ctx) {
+esp_err_t template_apply(struct templ_instance* instance, char* path, templ_write_cb cb, void* ctx) {
+	esp_err_t err;
+	int fd = open(path, O_RDONLY);
+	if(fd < 0) {
+		err = errno;
+		goto fail;
+	}
+
+	err = template_apply_fd(instance, fd, cb, ctx);
+
+	close(fd);
+
+fail:
+	return err;
+};
+
+esp_err_t template_apply_fd(struct templ_instance* instance, int fd, templ_write_cb cb, void* ctx) {
 	esp_err_t err = ESP_OK;
 	size_t filepos = 0;
 	char buff[TEMPLATE_BUFF_SIZE];
 	struct list_head* cursor;
 
 	LIST_FOR_EACH(cursor, &instance->slices) {
-		struct templ_entry* entry = LIST_GET_ENTRY(cursor, struct templ_entry, list);
+		struct templ_slice* slice = LIST_GET_ENTRY(cursor, struct templ_slice, list);
 
-		if(entry->cb) {
-			if((err = entry->cb(ctx, entry->priv))) {
+		// Skip to start of slice
+		while(filepos < slice->start) {
+			size_t max_read_len = min(sizeof(buff), slice->start - filepos);
+			ssize_t read_len = read(fd, buff, max_read_len);
+			if(read_len < 0) {
+				err = errno;
+				goto fail;
+			}
+			if(read_len == 0) {
+				err = ESP_ERR_INVALID_ARG;
+				goto fail;
+			}
+			filepos += read_len;
+		}
+
+
+		if(slice->entry) {
+			if((err = slice->entry->cb(ctx, slice->entry->priv))) {
 				goto fail;
 			}
 		} else {
-			// Skip to stat of entry
-			while(filepos < entry->start) {
-				size_t max_read_len = min(sizeof(buff), entry->start - filepos);
-				ssize_t read_len = read(fd, buff, max_read_len);
-				if(read_len < 0) {
-					err = errno;
-					goto fail;
-				}
-				if(read_len == 0) {
-					err = ESP_ERR_INVALID_ARG;
-					goto fail;
-				}
-				filepos += read_len;
-			}
-
-			// Write out entry
-			while(filepos < entry->end) {
-				size_t max_read_len = min(sizeof(buff), entry->end - filepos);
+			// Write out slice
+			while(filepos < slice->end) {
+				size_t max_read_len = min(sizeof(buff), slice->end - filepos);
 				ssize_t read_len = read(fd, buff, max_read_len);
 				if(read_len < 0) {
 					err = errno;

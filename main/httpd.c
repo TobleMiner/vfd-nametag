@@ -38,7 +38,8 @@ esp_err_t httpd_alloc(struct httpd** retval, const char* webroot) {
 	futil_normalize_path(httpd->webroot);
 
 	INIT_LIST_HEAD(httpd->handlers);
-	INIT_LIST_HEAD(httpd->templates);
+
+	template_init(&httpd->templates);
 
 	if((err = httpd_start(&httpd->server, &conf))) {
 		goto fail_webroot_alloc;
@@ -133,9 +134,9 @@ struct httpd_handler_ops httpd_static_file_handler_ops = {
 	.free = httpd_free_static_file_handler,
 };
 
-static esp_err_t httpd_add_static_file(struct httpd* httpd, char* path) {
+static esp_err_t httpd_add_static_file_default(struct httpd* httpd, char* path) {
 	esp_err_t err;
-	char* uri;
+	char* uri, *fext;
 	struct httpd_static_file_handler* hndlr = calloc(1, sizeof(struct httpd_static_file_handler));
 	if(!hndlr) {
 		err = ESP_ERR_NO_MEM;
@@ -184,6 +185,114 @@ fail_alloc:
 	free(hndlr);
 fail:
 	return err;
+}
+
+static esp_err_t static_template_file_write_cb(void* ctx, char* buff, size_t len) {
+	httpd_req_t* req = ctx;
+	return httpd_resp_send_chunk(req, buff, len);
+}
+
+esp_err_t httpd_template_write(void* ctx, char* buff, size_t len) {
+	httpd_req_t* req = ctx;
+	return httpd_resp_send_chunk(req, buff, len);
+}
+
+static esp_err_t static_template_file_get_handler(httpd_req_t* req) {
+	struct httpd_static_template_file_handler* hndlr = req->user_ctx;
+
+	printf("httpd: Delivering templated static content from %s\n", hndlr->path);
+
+	if((err = template_apply(hndlr->templ, hndlr->path, static_template_file_write_cb, req))) {
+		goto fail;
+	}
+
+	httpd_resp_send_chunk(req, NULL, 0);
+
+fail:
+	return err;
+}
+
+#define HTTPD_HANDLER_TO_HTTPD_STATIC_TEMPLATE_FILE_HANDER(hndlr) \
+	container_of((hndlr), struct httpd_static_template_file_handler, handler)
+
+static void httpd_free_static_template_file_handler(struct httpd_handler* hndlr) {
+	struct httpd_static_template_file_handler* hndlr_file = HTTPD_HANDLER_TO_HTTPD_STATIC_TEMPLATE_FILE_HANDER(hndlr);
+	free(hndlr_file->path);
+	template_free_instance(hndlr_file->templ);
+	// Allthough uri_handler.uri is declared const we use it with dynamically allocated memory
+	free((char*)hndlr->uri_handler.uri);
+}
+
+struct httpd_handler_ops httpd_static_template_file_handler_ops = {
+	.free = httpd_free_static_template_file_handler,
+};
+
+static esp_err_t httpd_add_static_file_template(struct httpd* httpd, char* path) {
+	esp_err_t err;
+	char* uri, *fext;
+	struct httpd_static_file_template_handler* hndlr = calloc(1, sizeof(struct httpd_static_file_template_handler));
+	if(!hndlr) {
+		err = ESP_ERR_NO_MEM;
+		goto fail;
+	}
+
+	if((err = template_alloc_instance(&hndlr->templ, &httpd->templates, path))) {
+		goto fail_handler_alloc;
+	}
+
+	hndlr->path = strdup(path);
+	if(!hndlr->path) {
+		err = ESP_ERR_NO_MEM;
+		goto fail_template_alloc;
+	}
+
+	uri = strdup(path);
+	if(!uri) {
+		err = ESP_ERR_NO_MEM;
+		goto fail_path_alloc;
+	}
+
+	futil_normalize_path(uri);
+	if((err = futil_relpath(uri, httpd->webroot))) {
+		goto fail_uri_alloc;
+	}
+
+	hndlr->handler.uri_handler.uri = uri;
+	hndlr->handler.uri_handler.method = HTTP_GET;
+	hndlr->handler.uri_handler.handler = static_template_file_get_handler;
+	hndlr->handler.uri_handler.user_ctx = hndlr;
+
+	hndlr->handler.ops = &httpd_static_file_handler_ops;
+
+	printf("httpd: Registering static file handler at '%s' for file '%s'\n", uri, path);
+
+	if((err = httpd_register_uri_handler(httpd->server, &hndlr->handler.uri_handler))) {
+		goto fail_uri_alloc;
+	}
+
+	LIST_APPEND(&hndlr->handler.list, &httpd->handlers);
+
+	return ESP_OK;
+
+fail_uri_alloc:
+	free(uri);
+fail_path_alloc:
+	free(hndlr->path);
+fail_template_alloc:
+	template_free_instance(hndlr->templ);
+fail_handler_alloc:
+	free(hndlr);
+fail:
+	return err;
+}
+
+static esp_err_t httpd_add_static_file(struct httpd* httpd, char* path) {
+	fext = futil_get_fext(path);
+	if(fext && !strcmp(fext, "thtml")) {
+		return httpd_add_static_file_template(httpd, path);
+	}
+
+	return httpd_add_static_file_default(httpd, path);
 }
 
 
