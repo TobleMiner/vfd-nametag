@@ -86,6 +86,13 @@ static esp_err_t static_file_get_handler(httpd_req_t* req) {
 
 	printf("httpd: Delivering static content from %s\n", hndlr->path);
 
+	if(hndlr->flags.gzip) {
+		printf("httpd: Content is gzip compressed, setting Content-Encoding header\n");
+		if((err = httpd_resp_set_hdr(req, "Content-Encoding", "gzip"))) {
+			goto fail;
+		}
+	}
+
 	if((fd = open(hndlr->path, O_RDONLY)) < 0) {
 		err = xlate_err(errno);
 		goto fail;
@@ -160,6 +167,10 @@ static esp_err_t httpd_add_static_file_default(struct httpd* httpd, char* path) 
 		goto fail_uri_alloc;
 	}
 
+	if(!magic_file_is_gzip(path)) {
+		hndlr->flags.gzip = 1;
+	}
+
 	hndlr->handler.uri_handler.uri = uri;
 	hndlr->handler.uri_handler.method = HTTP_GET;
 	hndlr->handler.uri_handler.handler = static_file_get_handler;
@@ -167,7 +178,7 @@ static esp_err_t httpd_add_static_file_default(struct httpd* httpd, char* path) 
 
 	hndlr->handler.ops = &httpd_static_file_handler_ops;
 
-	printf("httpd: Registering static file handler at '%s' for file '%s'\n", uri, path);
+	printf("httpd: Registering static file handler at '%s' for file '%s', gzip: %u\n", uri, path, hndlr->flags.gzip);
 
 	if((err = httpd_register_uri_handler(httpd->server, &hndlr->handler.uri_handler))) {
 		goto fail_uri_alloc;

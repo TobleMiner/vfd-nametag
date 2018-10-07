@@ -7,6 +7,7 @@
 
 #include "list.h"
 #include "template.h"
+#include "magic.h"
 
 #ifndef HTTPD_302
 #define HTTPD_302 "302 Found"
@@ -39,8 +40,13 @@ struct httpd_static_template_file_handler {
 	struct templ_instance* templ;
 };
 
+typedef uint8_t httpd_static_file_handler_flags;
+
 struct httpd_static_file_handler {
 	struct httpd_handler handler;
+	struct {
+		httpd_static_file_handler_flags gzip:1;
+	} flags;
 	char* path;
 };
 

@@ -29,6 +29,10 @@ const struct mime_pair mimedb[] = {
 		.fext = "json",
 		.mime_type = "application/json",
 	},
+	{
+		.fext = MIME_FEXT_GZIP,
+		.mime_type = "application/gzip",
+	},
 };
 
 const char* mime_get_type_from_filename(char* path) {
