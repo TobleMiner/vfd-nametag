@@ -6,6 +6,14 @@
 
 const struct mime_pair mimedb[] = {
 	{
+		.fext = "html",
+		.mime_type = "text/html",
+	},
+	{
+		.fext = "thtml",
+		.mime_type = "text/html",
+	},
+	{
 		.fext = "jpg",
 		.mime_type = "image/jpeg",
 	},
@@ -16,6 +24,10 @@ const struct mime_pair mimedb[] = {
 	{
 		.fext = "png",
 		.mime_type = "image/png",
+	},
+	{
+		.fext = "json",
+		.mime_type = "application/json",
 	},
 };
 
