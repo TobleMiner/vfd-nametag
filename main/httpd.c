@@ -199,9 +199,18 @@ esp_err_t httpd_template_write(void* ctx, char* buff, size_t len) {
 
 static esp_err_t static_template_file_get_handler(httpd_req_t* req) {
 	esp_err_t err;
+	const char* mime;
 	struct httpd_static_template_file_handler* hndlr = req->user_ctx;
 
 	printf("httpd: Delivering templated static content from %s\n", hndlr->path);
+
+	mime = mime_get_type_from_filename(hndlr->path);
+	if(mime) {
+		printf("Got mime type: %s\n", mime);
+		if((err = httpd_resp_set_type(req, mime))) {
+			goto fail;
+		}
+	}
 
 	if((err = template_apply(hndlr->templ, hndlr->path, static_template_file_write_cb, req))) {
 		goto fail;
