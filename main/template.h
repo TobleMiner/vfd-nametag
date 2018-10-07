@@ -38,7 +38,7 @@ struct templ_slice {
 	struct templ_entry* entry;
 };
 
-typedef esp_err_t (*templ_write_cb)(void* ctx, char* buff, size_t* len);
+typedef esp_err_t (*templ_write_cb)(void* ctx, char* buff, size_t len);
 
 void template_init(struct templ* templ);
 void template_free_instance(struct templ_instance* instance);

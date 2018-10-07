@@ -89,7 +89,7 @@ esp_err_t template_alloc_instance_fd(struct templ_instance** retval, struct temp
 		ring_advance_write(ring, read_len);
 
 next:
-		while(ring_available(ring) >= (read_len == 0 ? 0 : max_id_len)) {
+		while(ring_available(ring) >= (read_len == 0 ? 1 : max_id_len)) {
 			LIST_FOR_EACH(cursor, &templ->templates) {
 				struct templ_slice* prev_slice;
 				struct templ_entry* entry = LIST_GET_ENTRY(cursor, struct templ_entry, list);
@@ -163,6 +163,7 @@ esp_err_t template_add(struct templ* templ, char* id, templ_cb cb, void* priv) {
 	snprintf(entry->id, buff_len, "%s%s%s", TEMPLATE_ID_PREFIX, id, TEMPLATE_ID_SUFFIX);
 
 	LIST_APPEND(&entry->list, &templ->templates);
+	return ESP_OK;
 
 fail_entry_alloc:
 	free(entry);

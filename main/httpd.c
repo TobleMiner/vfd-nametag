@@ -136,7 +136,7 @@ struct httpd_handler_ops httpd_static_file_handler_ops = {
 
 static esp_err_t httpd_add_static_file_default(struct httpd* httpd, char* path) {
 	esp_err_t err;
-	char* uri, *fext;
+	char* uri;
 	struct httpd_static_file_handler* hndlr = calloc(1, sizeof(struct httpd_static_file_handler));
 	if(!hndlr) {
 		err = ESP_ERR_NO_MEM;
@@ -198,6 +198,7 @@ esp_err_t httpd_template_write(void* ctx, char* buff, size_t len) {
 }
 
 static esp_err_t static_template_file_get_handler(httpd_req_t* req) {
+	esp_err_t err;
 	struct httpd_static_template_file_handler* hndlr = req->user_ctx;
 
 	printf("httpd: Delivering templated static content from %s\n", hndlr->path);
@@ -229,8 +230,8 @@ struct httpd_handler_ops httpd_static_template_file_handler_ops = {
 
 static esp_err_t httpd_add_static_file_template(struct httpd* httpd, char* path) {
 	esp_err_t err;
-	char* uri, *fext;
-	struct httpd_static_file_template_handler* hndlr = calloc(1, sizeof(struct httpd_static_file_template_handler));
+	char* uri;
+	struct httpd_static_template_file_handler* hndlr = calloc(1, sizeof(struct httpd_static_template_file_handler));
 	if(!hndlr) {
 		err = ESP_ERR_NO_MEM;
 		goto fail;
@@ -287,7 +288,7 @@ fail:
 }
 
 static esp_err_t httpd_add_static_file(struct httpd* httpd, char* path) {
-	fext = futil_get_fext(path);
+	char* fext = futil_get_fext(path);
 	if(fext && !strcmp(fext, "thtml")) {
 		return httpd_add_static_file_template(httpd, path);
 	}

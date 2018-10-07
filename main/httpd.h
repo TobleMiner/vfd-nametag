@@ -52,11 +52,12 @@ struct httpd_redirect_handler {
 esp_err_t httpd_alloc(struct httpd** retval, const char* webroot);
 esp_err_t __httpd_add_static_path(struct httpd* httpd, char* dir, char* name);
 esp_err_t httpd_add_redirect(struct httpd* httpd, char* from, char* to);
+esp_err_t httpd_template_write(void* ctx, char* buff, size_t len);
 
 #define httpd_add_static_path(httpd, path) \
 	__httpd_add_static_path(httpd, NULL, path)
 
 #define httpd_add_template(httpd, id, cb, priv) \
-	return template_add(&(httpd)->templates, id, cb, priv)
+	template_add(&(httpd)->templates, id, cb, priv)
 
 #endif
