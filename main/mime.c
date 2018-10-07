@@ -14,6 +14,14 @@ const struct mime_pair mimedb[] = {
 		.mime_type = "text/html",
 	},
 	{
+		.fext = "js",
+		.mime_type = "text/javascript",
+	},
+	{
+		.fext = "css",
+		.mime_type = "text/css",
+	},
+	{
 		.fext = "jpg",
 		.mime_type = "image/jpeg",
 	},
