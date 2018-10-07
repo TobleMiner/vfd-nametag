@@ -6,6 +6,7 @@
 #include "esp_err.h"
 
 #include "list.h"
+#include "template.h"
 
 #ifndef HTTPD_302
 #define HTTPD_302 "302 Found"
@@ -16,7 +17,8 @@ struct httpd {
 	char* webroot;
 
 	struct list_head handlers;
-	struct list_head templates;
+
+	struct templ templates;
 };
 
 struct httpd_handler;
@@ -25,20 +27,16 @@ struct httpd_handler_ops {
 	void (*free)(struct httpd_handler* hndlr);
 };
 
-struct httpd_template_callback;
-
-typedef esp_err_t (*template_cb)(struct httpd* httpd, httpd_req_t* request, struct httpd_template_callback* cb);
-
-struct httpd_template_callback {
-	void* priv;
-	char* key;
-	template_cb template_cb;
-};
-
 struct httpd_handler {
 	struct list_head list;
 	httpd_uri_t uri_handler;
 	struct httpd_handler_ops* ops;
+};
+
+struct httpd_static_template_file_handler {
+	struct httpd_handler handler;
+	char* path;
+	struct templ_instance* templ;
 };
 
 struct httpd_static_file_handler {
@@ -54,8 +52,12 @@ struct httpd_redirect_handler {
 esp_err_t httpd_alloc(struct httpd** retval, const char* webroot);
 esp_err_t __httpd_add_static_path(struct httpd* httpd, char* dir, char* name);
 esp_err_t httpd_add_redirect(struct httpd* httpd, char* from, char* to);
+esp_err_t httpd_template_write(void* ctx, char* buff, size_t len);
 
 #define httpd_add_static_path(httpd, path) \
 	__httpd_add_static_path(httpd, NULL, path)
+
+#define httpd_add_template(httpd, id, cb, priv) \
+	template_add(&(httpd)->templates, id, cb, priv)
 
 #endif

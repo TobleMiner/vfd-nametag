@@ -358,6 +358,16 @@ void userio_event_loop(void* arg) {
 	}
 }
 
+static esp_err_t title_template_cb(void* ctx, void* priv) {
+	char* str = "This is a templated title";
+	return httpd_template_write(ctx, str, strlen(str));
+}
+
+static esp_err_t content_template_cb(void* ctx, void* priv) {
+	char* str = "This is templated content";
+	return httpd_template_write(ctx, str, strlen(str));
+}
+
 void app_main()
 {
 	esp_err_t err;
@@ -383,6 +393,12 @@ void app_main()
 
 	struct httpd* httpd;
 	err = httpd_alloc(&httpd, "/flash/srv/http");
+	ESP_ERROR_CHECK(err);
+
+	err = httpd_add_template(httpd, "title", title_template_cb, NULL);
+	ESP_ERROR_CHECK(err);
+
+	err = httpd_add_template(httpd, "content", content_template_cb, NULL);
 	ESP_ERROR_CHECK(err);
 
 	err = httpd_add_static_path(httpd, "/flash/srv/http");

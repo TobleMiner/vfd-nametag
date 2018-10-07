@@ -14,6 +14,8 @@ set(COMPONENT_SRCS	"hcs_12SS59t.c"
 			"ip.c"
 			"futil.c"
 			"mime.c"
+			"ring.c"
+			"template.c"
 			"vfd_main.c")
 
 set(COMPONENT_ADD_INCLUDEDIRS ".")
