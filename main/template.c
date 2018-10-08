@@ -76,7 +76,7 @@ static esp_err_t template_alloc_slice_arg(struct templ_slice_arg** retval, char*
         goto fail_arg_alloc;
     }
 
-    arg->value = strdup(key);
+    arg->value = strdup(value);
     if(!arg->value) {
         err = ESP_ERR_NO_MEM;
         goto fail_key_alloc;
