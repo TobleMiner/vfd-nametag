@@ -80,3 +80,33 @@ fail_fd:
 fail:
 	return err;
 }
+
+esp_err_t futil_read_file(void* ctx, char* path, futil_write_cb cb) {
+	esp_err_t err = ESP_OK;
+	int fd;
+	ssize_t read_len;
+	char buff[FUTIL_CHUNK_SIZE];
+
+	if((fd = open(path, O_RDONLY)) < 0) {
+		err = errno;
+		goto fail;
+	}
+
+	while((read_len = read(fd, buff, sizeof(buff))) > 0) {
+		if((err = cb(ctx, buff, read_len))) {
+			printf("Failed to handle chunk: %d size: %zd\n", err, read_len);
+			goto fail_open;
+		}
+	}
+
+	if(read_len < 0) {
+		printf("Read failed: %s(%d)\n", strerror(errno), errno);
+		err = errno;
+		goto fail_open;
+	}
+
+fail_open:
+	close(fd);
+fail:
+	return err;
+}
