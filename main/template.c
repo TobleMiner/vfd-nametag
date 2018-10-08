@@ -28,17 +28,19 @@ static esp_err_t template_alloc_slice(struct templ_slice** retval) {
 }
 
 void template_free_instance(struct templ_instance* instance) {
-	struct list_head* cursor;
+	struct list_head* cursor, *next;
 
-	LIST_FOR_EACH(cursor, &instance->slices) {
-        struct list_head* arg_cursor;
+	LIST_FOR_EACH_SAFE(cursor, next, &instance->slices) {
+        struct list_head* arg_cursor, *arg_next;
    		struct templ_slice* slice = LIST_GET_ENTRY(cursor, struct templ_slice, list);
-        LIST_FOR_EACH(arg_cursor, &slice->args) {
+        LIST_FOR_EACH_SAFE(arg_cursor, arg_next, &slice->args) {
             struct templ_slice_arg* arg = LIST_GET_ENTRY(arg_cursor, struct templ_slice_arg, list);
             free(arg->value);
             free(arg->key);
+			LIST_DELETE(&arg->list);
             free(arg);
         }
+		LIST_DELETE(&slice->list);
 		free(slice);
 	}
 	free(instance);
@@ -137,7 +139,7 @@ esp_err_t template_alloc_instance_fd(struct templ_instance** retval, struct temp
 	char* last_template;
 	struct templ_slice* slice;
 	struct ring* ring;
-	struct list_head* cursor;
+	struct list_head* cursor, *next;
 	struct templ_instance* instance = calloc(1, sizeof(struct templ_instance));
 	if(!instance) {
 		err = ESP_ERR_NO_MEM;
@@ -259,8 +261,9 @@ next:
 
 fail_slices:
 	free(slice);
-	LIST_FOR_EACH(cursor, &instance->slices) {
+	LIST_FOR_EACH_SAFE(cursor, next, &instance->slices) {
 		struct templ_slice* slice = LIST_GET_ENTRY(cursor, struct templ_slice, list);
+		LIST_DELETE(&slice->list);
 		free(slice);
 	}
 fail_ring_alloc:
