@@ -303,6 +303,15 @@ fail:
 	return err;
 }
 
+void template_free_templates(struct templ* templ) {
+	struct list_head* cursor, *next;
+	LIST_FOR_EACH_SAFE(cursor, next, &templ->templates) {
+		struct templ_entry* entry = LIST_GET_ENTRY(cursor, struct templ_entry, list);
+		LIST_DELETE(&entry->list);
+		free(entry);
+	}
+}
+
 esp_err_t template_apply(struct templ_instance* instance, char* path, templ_write_cb cb, void* ctx) {
 	esp_err_t err;
 	int fd = open(path, O_RDONLY);
@@ -345,7 +354,7 @@ esp_err_t template_apply_fd(struct templ_instance* instance, int fd, templ_write
 
 
 		if(slice->entry) {
-			if((err = slice->entry->cb(ctx, slice->entry->priv, &slice->args))) {
+			if((err = slice->entry->cb(ctx, slice->entry->priv, slice))) {
 				goto fail;
 			}
 		} else {
@@ -372,4 +381,15 @@ esp_err_t template_apply_fd(struct templ_instance* instance, int fd, templ_write
 
 fail:
 	return err;
+}
+
+struct templ_slice_arg* template_slice_get_option(struct templ_slice* slice, char* id) {
+	struct list_head* cursor;
+	LIST_FOR_EACH(cursor, &slice->args) {
+		struct templ_slice_arg* arg = LIST_GET_ENTRY(cursor, struct templ_slice_arg, list);
+		if(!strcmp(id, arg->key)) {
+			return arg;
+		}
+	}
+	return NULL;
 }

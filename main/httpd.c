@@ -13,6 +13,27 @@
 #include "ip.h"
 #include "mime.h"
 
+static esp_err_t send_chunk_cb(void* ctx, char* buff, size_t len) {
+	httpd_req_t* req = ctx;
+	return httpd_resp_send_chunk(req, buff, len);
+}
+
+static esp_err_t template_include_cb(void* ctx, void* priv, struct templ_slice* slice) {
+	esp_err_t err;
+	struct templ_slice_arg* include_arg = template_slice_get_option(slice, "file");
+	if(!include_arg) {
+		err = ESP_ERR_INVALID_ARG;
+		goto fail;
+	}
+
+	if((err = futil_read_file(ctx, include_arg->value, send_chunk_cb))) {
+		goto fail;
+	}
+
+fail:
+	return err;
+}
+
 esp_err_t httpd_alloc(struct httpd** retval, const char* webroot) {
 	esp_err_t err;
 	struct httpd* httpd;
@@ -41,13 +62,19 @@ esp_err_t httpd_alloc(struct httpd** retval, const char* webroot) {
 
 	template_init(&httpd->templates);
 
-	if((err = httpd_start(&httpd->server, &conf))) {
+	if((err = template_add(&httpd->templates, "include", template_include_cb, NULL))) {
 		goto fail_webroot_alloc;
+	}
+
+	if((err = httpd_start(&httpd->server, &conf))) {
+		goto fail_templates_alloc;
 	}
 
 	*retval = httpd;
 	return ESP_OK;
 
+fail_templates_alloc:
+	template_free_templates(&httpd->templates);
 fail_webroot_alloc:
 	free(httpd->webroot);
 fail_alloc:
@@ -77,9 +104,6 @@ static esp_err_t xlate_err(int err) {
 }
 
 static esp_err_t static_file_get_handler(httpd_req_t* req) {
-	int fd;
-	ssize_t read_len;
-	char buff[256];
 	esp_err_t err = ESP_OK;
 	const char* mime;
 	struct httpd_static_file_handler* hndlr = req->user_ctx;
@@ -93,36 +117,20 @@ static esp_err_t static_file_get_handler(httpd_req_t* req) {
 		}
 	}
 
-	if((fd = open(hndlr->path, O_RDONLY)) < 0) {
-		err = xlate_err(errno);
-		goto fail;
-	}
-
 	mime = mime_get_type_from_filename(hndlr->path);
 	if(mime) {
 		printf("Got mime type: %s\n", mime);
 		if((err = httpd_resp_set_type(req, mime))) {
-			goto fail_open;
+			goto fail;
 		}
 	}
 
-	while((read_len = read(fd, buff, sizeof(buff))) > 0) {
-		if((err = httpd_resp_send_chunk(req, buff, read_len))) {
-			printf("Failed to send chunk: %d size: %zd\n", err, read_len);
-			goto fail_open;
-		}
-	}
-
-	if(read_len < 0) {
-		printf("Read failed: %s(%d)\n", strerror(errno), errno);
-		err = xlate_err(errno);
-		goto fail_open;
+	if((err = futil_read_file(req, hndlr->path, send_chunk_cb))) {
+		goto fail;
 	}
 
 	httpd_resp_send_chunk(req, NULL, 0);
 
-fail_open:
-	close(fd);
 fail:
 	return err;
 }

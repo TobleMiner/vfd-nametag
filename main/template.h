@@ -16,8 +16,10 @@ struct templ {
 	struct list_head templates;
 };
 
+struct templ_slice;
+
 // priv comes from templ_entry struct, ctx from current execution
-typedef esp_err_t (*templ_cb)(void* ctx, void* priv, struct list_head* args);
+typedef esp_err_t (*templ_cb)(void* ctx, void* priv, struct templ_slice* slice);
 
 struct templ_entry {
 	struct list_head list;
@@ -56,5 +58,7 @@ esp_err_t template_alloc_instance_fd(struct templ_instance** retval, struct temp
 esp_err_t template_add(struct templ* templ, char* id, templ_cb cb, void* priv);
 esp_err_t template_apply(struct templ_instance* instance, char* path, templ_write_cb cb, void* ctx);
 esp_err_t template_apply_fd(struct templ_instance* instance, int fd, templ_write_cb cb, void* ctx);
+void template_free_templates(struct templ* templ);
+struct templ_slice_arg* template_slice_get_option(struct templ_slice* slice, char* id);
 
 #endif

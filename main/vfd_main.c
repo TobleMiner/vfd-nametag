@@ -358,16 +358,16 @@ void userio_event_loop(void* arg) {
 	}
 }
 
-static esp_err_t title_template_cb(void* ctx, void* priv, struct list_head* args) {
+static esp_err_t title_template_cb(void* ctx, void* priv, struct templ_slice* slice) {
 	char* str = "This is a templated title";
 	return httpd_template_write(ctx, str, strlen(str));
 }
 
-static esp_err_t content_template_cb(void* ctx, void* priv, struct list_head* args) {
+static esp_err_t content_template_cb(void* ctx, void* priv, struct templ_slice* slice) {
 	char buffer[128];
 	memset(buffer, 0, sizeof(buffer));
 	size_t free_heap = xPortGetFreeHeapSize();
-	snprintf(buffer, sizeof(buffer), "Free heap memory: %zu\n", free_heap);
+	snprintf(buffer, sizeof(buffer), "Free heap memory: %zu", free_heap);
 	return httpd_template_write(ctx, buffer, strlen(buffer));
 }
 
