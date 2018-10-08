@@ -161,6 +161,7 @@ esp_err_t template_alloc_instance_fd(struct templ_instance** retval, struct temp
 	LIST_APPEND(&slice->list, &instance->slices);
 
 	do {
+read_more:
 		read_len = read(fd, ring->ptr_write, ring_free_space_contig(ring));
 		if(read_len < 0) {
 			err = errno;
@@ -178,7 +179,11 @@ next:
 				last_template = ring->ptr_read;
                 // Detect start of template
 				if(!ring_memcmp(ring, entry->id, id_len, NULL)) {
+					size_t text_slice_end = filepos;
 					char* arg_begin = ring->ptr_read;
+
+					filepos += id_len;
+
 					size_t arg_len = 0;
 
 					while(ring_available(ring) >= suffix_len) {
@@ -187,6 +192,8 @@ next:
 							char argstr[TEMPLATE_MAX_ARG_LEN + 1];
 							char* template_end = ring->ptr_read;
 							size_t data_len = min(arg_len, ARRAY_LEN(argstr) - 1);
+
+							filepos += suffix_len;
 
                             // Argument list too long
 							if(data_len < arg_len) {
@@ -201,7 +208,7 @@ next:
 							}
 							ring->ptr_read = template_end;
 
-							slice->end = filepos;
+							slice->end = text_slice_end;
 
 							prev_slice = slice;
 							if((err = template_alloc_slice(&slice))) {
@@ -209,7 +216,7 @@ next:
 							}
 							slice->entry = entry;
 							slice->start = prev_slice->end;
-							slice->end = filepos + id_len + suffix_len;
+							slice->end = filepos;
 							LIST_APPEND(&slice->list, &prev_slice->list);
                             // Parse slice arguments
                             if((err = slice_parse_options(slice, argstr))) {
@@ -222,22 +229,21 @@ next:
 							}
 							slice->start = prev_slice->end;
 							LIST_APPEND(&slice->list, &prev_slice->list);
-                            
-							filepos += id_len + arg_len + suffix_len;
 							goto next;
-
 						}
 						ring_inc_read(ring);
 						filepos++;
 						arg_len++;
 					}
 
+					filepos = text_slice_end;
 					ring->ptr_read = last_template;	
                     if(read_len == 0 || ring_available(ring) >= max_id_len + TEMPLATE_MAX_ARG_LEN + suffix_len) {
 					    // There is no terminator / the argument list is too long
 					    err = -EINVAL;
 					    goto fail_slices;
                     }
+					goto read_more;
 				}
 			}
 
