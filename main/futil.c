@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -16,7 +17,6 @@ void futil_normalize_path(char* path) {
 	}
 }
 
-
 esp_err_t futil_relpath(char* path, char* basepath) {
 	size_t base_len = strlen(basepath);
 	size_t path_len = strlen(path);
@@ -32,6 +32,26 @@ esp_err_t futil_relpath(char* path, char* basepath) {
 	memmove(path, path + base_len, path_len - base_len + 1);
 
 	return ESP_OK;
+}
+
+bool futil_is_path_relative(char* path) {
+	return path[0] != '/';
+}
+
+char* futil_path_concat(char* path, char* basepath) {
+	size_t abspath_len = strlen(basepath) + 1 + strlen(path) + 1;
+	char* abspath = calloc(1, abspath_len);
+	if(!abspath) {
+		return NULL;
+	}
+
+	strncat(abspath, basepath, abspath_len);
+	strncat(abspath, "/", abspath_len);
+	strncat(abspath, path, abspath_len);
+
+	futil_normalize_path(abspath);
+
+	return abspath;
 }
 
 static char* futil_get_fext_limit(char* path, char* limit) {
