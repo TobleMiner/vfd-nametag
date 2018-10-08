@@ -9,6 +9,7 @@
 #define TEMPLATE_ID_PREFIX "[/{"
 #define TEMPLATE_ID_SUFFIX "}/]"
 
+#define TEMPLATE_MAX_ARG_LEN 128
 #define TEMPLATE_BUFF_SIZE 256
 
 struct templ {
@@ -16,7 +17,7 @@ struct templ {
 };
 
 // priv comes from templ_entry struct, ctx from current execution
-typedef esp_err_t (*templ_cb)(void* ctx, void* priv);
+typedef esp_err_t (*templ_cb)(void* ctx, void* priv, struct list_head* args);
 
 struct templ_entry {
 	struct list_head list;
@@ -30,12 +31,20 @@ struct templ_instance {
 	struct list_head slices;
 };
 
+struct templ_slice_arg {
+    struct list_head list;
+
+    char* key;
+    char* value;
+};
+
 struct templ_slice {
 	struct list_head list;
 
 	size_t start;
 	size_t end;
 	struct templ_entry* entry;
+	struct list_head args;
 };
 
 typedef esp_err_t (*templ_write_cb)(void* ctx, char* buff, size_t len);
