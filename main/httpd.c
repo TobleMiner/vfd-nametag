@@ -20,16 +20,34 @@ static esp_err_t send_chunk_cb(void* ctx, char* buff, size_t len) {
 
 static esp_err_t template_include_cb(void* ctx, void* priv, struct templ_slice* slice) {
 	esp_err_t err;
+	char* path;
+	struct httpd* httpd = priv;
 	struct templ_slice_arg* include_arg = template_slice_get_option(slice, "file");
 	if(!include_arg) {
+		printf("Include directive misses required option 'file'\n");
 		err = ESP_ERR_INVALID_ARG;
 		goto fail;
 	}
 
-	if((err = futil_read_file(ctx, include_arg->value, send_chunk_cb))) {
-		goto fail;
+	path = include_arg->value;
+	if(futil_is_path_relative(path)) {
+		path = futil_path_concat(path, httpd->webroot);
+		if(!path) {
+			err = ESP_ERR_NO_MEM;
+			goto fail;
+		}
 	}
 
+	printf("Including file '%s'\n", path);
+
+	if((err = futil_read_file(ctx, path, send_chunk_cb))) {
+		goto fail_path_alloc;
+	}
+
+fail_path_alloc:
+	if(futil_is_path_relative(include_arg->value)) {
+		free(path);
+	}
 fail:
 	return err;
 }
@@ -62,7 +80,7 @@ esp_err_t httpd_alloc(struct httpd** retval, const char* webroot) {
 
 	template_init(&httpd->templates);
 
-	if((err = template_add(&httpd->templates, "include", template_include_cb, NULL))) {
+	if((err = template_add(&httpd->templates, "include", template_include_cb, httpd))) {
 		goto fail_webroot_alloc;
 	}
 
