@@ -21,7 +21,7 @@ static esp_err_t template_alloc_slice(struct templ_slice** retval) {
 		return ESP_ERR_NO_MEM;
 	}
 
-    INIT_LIST_HEAD(slice->args);
+	INIT_LIST_HEAD(slice->args);
 
 	*retval = slice;
 	return ESP_OK;
@@ -31,15 +31,15 @@ void template_free_instance(struct templ_instance* instance) {
 	struct list_head* cursor, *next;
 
 	LIST_FOR_EACH_SAFE(cursor, next, &instance->slices) {
-        struct list_head* arg_cursor, *arg_next;
-   		struct templ_slice* slice = LIST_GET_ENTRY(cursor, struct templ_slice, list);
-        LIST_FOR_EACH_SAFE(arg_cursor, arg_next, &slice->args) {
-            struct templ_slice_arg* arg = LIST_GET_ENTRY(arg_cursor, struct templ_slice_arg, list);
-            free(arg->value);
-            free(arg->key);
+		struct list_head* arg_cursor, *arg_next;
+		struct templ_slice* slice = LIST_GET_ENTRY(cursor, struct templ_slice, list);
+		LIST_FOR_EACH_SAFE(arg_cursor, arg_next, &slice->args) {
+			struct templ_slice_arg* arg = LIST_GET_ENTRY(arg_cursor, struct templ_slice_arg, list);
+			free(arg->value);
+			free(arg->key);
 			LIST_DELETE(&arg->list);
-            free(arg);
-        }
+			free(arg);
+		}
 		LIST_DELETE(&slice->list);
 		free(slice);
 	}
@@ -63,77 +63,77 @@ fail:
 }
 
 static esp_err_t template_alloc_slice_arg(struct templ_slice_arg** retval, char* key, char* value) {
-    esp_err_t err;
-    struct templ_slice_arg* arg = calloc(1, sizeof(struct templ_slice_arg));
-    if(!arg) {
-        err = ESP_ERR_NO_MEM;
-        goto fail;
-    }
+	esp_err_t err;
+	struct templ_slice_arg* arg = calloc(1, sizeof(struct templ_slice_arg));
+	if(!arg) {
+		err = ESP_ERR_NO_MEM;
+		goto fail;
+	}
 
-    arg->key = strdup(key);
-    if(!arg->key) {
-        err = ESP_ERR_NO_MEM;
-        goto fail_arg_alloc;
-    }
+	arg->key = strdup(key);
+	if(!arg->key) {
+		err = ESP_ERR_NO_MEM;
+		goto fail_arg_alloc;
+	}
 
-    arg->value = strdup(value);
-    if(!arg->value) {
-        err = ESP_ERR_NO_MEM;
-        goto fail_key_alloc;
-    }
+	arg->value = strdup(value);
+	if(!arg->value) {
+		err = ESP_ERR_NO_MEM;
+		goto fail_key_alloc;
+	}
 
-    *retval = arg;
-    return ESP_OK;
+	*retval = arg;
+	return ESP_OK;
 
 fail_key_alloc:
-    free(arg->key);
+	free(arg->key);
 fail_arg_alloc:
-    free(arg);
+	free(arg);
 fail:
-    return err;
+	return err;
 }
 
 static esp_err_t slice_parse_option(struct templ_slice* slice, char* option) {
-    esp_err_t err;
-    char* sep = strchr(option, '=');
-    char* sep_limit = strchr(option, ',');
-    char* limit = option + strlen(option);
-    char* value = NULL;
-    struct templ_slice_arg* arg;
-    if(sep && (sep < sep_limit || !sep_limit)) {
-        *sep = '\0';
-        value = sep + 1 < limit ? sep + 1 : NULL;
-    }
+	esp_err_t err;
+	char* sep = strchr(option, '=');
+	char* sep_limit = strchr(option, ',');
+	char* limit = option + strlen(option);
+	char* value = NULL;
+	struct templ_slice_arg* arg;
+	if(sep && (sep < sep_limit || !sep_limit)) {
+		*sep = '\0';
+		value = sep + 1 < limit ? sep + 1 : NULL;
+	}
 
 	if(!value) {
 		value = "";
 	}
 
-    if((err = template_alloc_slice_arg(&arg, option, value))) {
-        return err;
-    }
-    LIST_APPEND(&arg->list, &slice->args);
+	if((err = template_alloc_slice_arg(&arg, option, value))) {
+		return err;
+	}
+	LIST_APPEND(&arg->list, &slice->args);
 
-    return ESP_OK;
+	return ESP_OK;
 }
 
 static esp_err_t slice_parse_options(struct templ_slice* slice, char* options) {
-    esp_err_t err;
-    char* sep = NULL;
-    char* limit = options + strlen(options);
-    while(options < limit && (sep = strchr(options, ','))) {
-        *sep = '\0';
-        if((err = slice_parse_option(slice, options))) {
-            return err;
-        }
-        options = sep + 1;
-    }
-    if(options < limit) {
-        if((err = slice_parse_option(slice, options))) {
-            return err;
-        }
-    }
-    return ESP_OK;
+	esp_err_t err;
+	char* sep = NULL;
+	char* limit = options + strlen(options);
+	while(options < limit && (sep = strchr(options, ','))) {
+		*sep = '\0';
+		if((err = slice_parse_option(slice, options))) {
+			return err;
+		}
+		options = sep + 1;
+	}
+	if(options < limit) {
+		if((err = slice_parse_option(slice, options))) {
+			return err;
+		}
+	}
+	return ESP_OK;
 }
 
 esp_err_t template_alloc_instance_fd(struct templ_instance** retval, struct templ* templ, int fd) {
@@ -183,7 +183,7 @@ next:
 				size_t id_len = strlen(entry->id);
 
 				last_template = ring->ptr_read;
-                // Detect start of template
+				// Detect start of template
 				if(!ring_memcmp(ring, entry->id, id_len, NULL)) {
 					size_t text_slice_end = filepos;
 					char* arg_begin = ring->ptr_read;
@@ -193,7 +193,7 @@ next:
 					size_t arg_len = 0;
 
 					while(ring_available(ring) >= suffix_len) {
-                        // Detect end of template
+						// Detect end of template
 						if(!ring_memcmp(ring, TEMPLATE_ID_SUFFIX, suffix_len, NULL)) {
 							char argstr[TEMPLATE_MAX_ARG_LEN + 1];
 							char* template_end = ring->ptr_read;
@@ -201,7 +201,7 @@ next:
 
 							filepos += suffix_len;
 
-                            // Argument list too long
+							// Argument list too long
 							if(data_len < arg_len) {
 								err = ESP_ERR_INVALID_ARG;
 								goto fail_slices;
@@ -224,8 +224,8 @@ next:
 							slice->start = prev_slice->end;
 							slice->end = filepos;
 							LIST_APPEND(&slice->list, &prev_slice->list);
-                            // Parse slice arguments
-                            if((err = slice_parse_options(slice, argstr))) {
+							// Parse slice arguments
+							if((err = slice_parse_options(slice, argstr))) {
 								goto fail_slices;
 							}
 
@@ -244,11 +244,11 @@ next:
 
 					filepos = text_slice_end;
 					ring->ptr_read = last_template;	
-                    if(read_len == 0 || ring_available(ring) >= max_id_len + TEMPLATE_MAX_ARG_LEN + suffix_len) {
-					    // There is no terminator / the argument list is too long
-					    err = -EINVAL;
-					    goto fail_slices;
-                    }
+					if(read_len == 0 || ring_available(ring) >= max_id_len + TEMPLATE_MAX_ARG_LEN + suffix_len) {
+						// There is no terminator / the argument list is too long
+						err = -EINVAL;
+						goto fail_slices;
+					}
 					goto read_more;
 				}
 			}

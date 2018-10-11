@@ -34,10 +34,10 @@ struct templ_instance {
 };
 
 struct templ_slice_arg {
-    struct list_head list;
+	struct list_head list;
 
-    char* key;
-    char* value;
+	char* key;
+	char* value;
 };
 
 struct templ_slice {

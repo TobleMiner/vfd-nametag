@@ -20,8 +20,8 @@ struct value_editor_config {
 };
 
 struct value_editor {
-        struct ui_element ui_element;
-        struct ui_element* caller;
+		struct ui_element ui_element;
+		struct ui_element* caller;
 
 	struct value_editor_config conf;
 
