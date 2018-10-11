@@ -105,6 +105,10 @@ static esp_err_t slice_parse_option(struct templ_slice* slice, char* option) {
         value = sep + 1 < limit ? sep + 1 : NULL;
     }
 
+	if(!value) {
+		value = "";
+	}
+
     if((err = template_alloc_slice_arg(&arg, option, value))) {
         return err;
     }
