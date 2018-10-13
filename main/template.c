@@ -27,21 +27,25 @@ static esp_err_t template_alloc_slice(struct templ_slice** retval) {
 	return ESP_OK;
 }
 
+static void template_free_slice(struct templ_slice* slice) {
+	struct list_head* arg_cursor, *arg_next;
+	LIST_FOR_EACH_SAFE(arg_cursor, arg_next, &slice->args) {
+		struct templ_slice_arg* arg = LIST_GET_ENTRY(arg_cursor, struct templ_slice_arg, list);
+		free(arg->value);
+		free(arg->key);
+		LIST_DELETE(&arg->list);
+		free(arg);
+	}
+	LIST_DELETE(&slice->list);
+	free(slice);
+}
+
 void template_free_instance(struct templ_instance* instance) {
 	struct list_head* cursor, *next;
 
 	LIST_FOR_EACH_SAFE(cursor, next, &instance->slices) {
-		struct list_head* arg_cursor, *arg_next;
 		struct templ_slice* slice = LIST_GET_ENTRY(cursor, struct templ_slice, list);
-		LIST_FOR_EACH_SAFE(arg_cursor, arg_next, &slice->args) {
-			struct templ_slice_arg* arg = LIST_GET_ENTRY(arg_cursor, struct templ_slice_arg, list);
-			free(arg->value);
-			free(arg->key);
-			LIST_DELETE(&arg->list);
-			free(arg);
-		}
-		LIST_DELETE(&slice->list);
-		free(slice);
+		template_free_slice(slice);
 	}
 	free(instance);
 }
@@ -242,6 +246,7 @@ next:
 						arg_len++;
 					}
 
+					// Read more
 					filepos = text_slice_end;
 					ring->ptr_read = last_template;	
 					if(read_len == 0 || ring_available(ring) >= max_id_len + TEMPLATE_MAX_ARG_LEN + suffix_len) {
@@ -264,11 +269,9 @@ next:
 	return ESP_OK;
 
 fail_slices:
-	free(slice);
 	LIST_FOR_EACH_SAFE(cursor, next, &instance->slices) {
 		struct templ_slice* slice = LIST_GET_ENTRY(cursor, struct templ_slice, list);
-		LIST_DELETE(&slice->list);
-		free(slice);
+		template_free_slice(slice);
 	}
 fail_ring_alloc:
 	ring_free(ring);
