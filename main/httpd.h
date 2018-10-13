@@ -55,15 +55,41 @@ struct httpd_redirect_handler {
 	char* location;	
 };
 
-esp_err_t httpd_alloc(struct httpd** retval, const char* webroot);
+struct httpd_request_handler;
+
+struct httpd_request_ctx {
+	httpd_req_t* req;
+	char* query_string;
+};
+
+typedef esp_err_t (*httpd_request_cb)(struct httpd_request_ctx* ctx, void* priv);
+
+struct httpd_request_handler {
+	struct httpd_handler handler;
+	char** required_keys;
+	void* priv;
+	httpd_request_cb cb;
+};
+
+#define HTTPD_REQ_TO_PRIV(req) \
+	((req)->user_ctx)
+
+esp_err_t httpd_alloc(struct httpd** retval, const char* webroot, uint16_t max_num_handlers);
 esp_err_t __httpd_add_static_path(struct httpd* httpd, char* dir, char* name);
 esp_err_t httpd_add_redirect(struct httpd* httpd, char* from, char* to);
 esp_err_t httpd_template_write(void* ctx, char* buff, size_t len);
+esp_err_t httpd_add_get_handler(struct httpd* httpd, char* path, httpd_request_cb cb, void* priv, char** required_params, size_t num_required_params);
+esp_err_t httpd_add_post_handler(struct httpd* httpd, char* path, httpd_request_cb cb, void* priv, char** required_params, size_t num_required_params);
+ssize_t httpd_query_string_get_param(struct httpd_request_ctx* ctx, const char* param, const char** value);
+
 
 #define httpd_add_static_path(httpd, path) \
 	__httpd_add_static_path(httpd, NULL, path)
 
 #define httpd_add_template(httpd, id, cb, priv) \
 	template_add(&(httpd)->templates, id, cb, priv)
+
+#define httpd_set_status(ctx, status) \
+	httpd_resp_set_status((ctx)->req, status)
 
 #endif

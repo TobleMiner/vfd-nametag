@@ -52,10 +52,11 @@ fail:
 	return err;
 }
 
-esp_err_t httpd_alloc(struct httpd** retval, const char* webroot) {
+esp_err_t httpd_alloc(struct httpd** retval, const char* webroot, uint16_t max_num_handlers) {
 	esp_err_t err;
 	struct httpd* httpd;
 	httpd_config_t conf = HTTPD_DEFAULT_CONFIG();
+	conf.max_uri_handlers = max_num_handlers;
 
 	if(!ip_stack_initialized()) {
 		err = ESP_ERR_INVALID_STATE;
@@ -225,19 +226,21 @@ fail:
 }
 
 static esp_err_t static_template_file_write_cb(void* ctx, char* buff, size_t len) {
-	httpd_req_t* req = ctx;
-	return httpd_resp_send_chunk(req, buff, len);
+	struct httpd_request_ctx* req_ctx = ctx;
+	return httpd_resp_send_chunk(req_ctx->req, buff, len);
 }
 
 esp_err_t httpd_template_write(void* ctx, char* buff, size_t len) {
-	httpd_req_t* req = ctx;
-	return httpd_resp_send_chunk(req, buff, len);
+	struct httpd_request_ctx* req_ctx = ctx;
+	return httpd_resp_send_chunk(req_ctx->req, buff, len);
 }
 
 static esp_err_t static_template_file_get_handler(httpd_req_t* req) {
 	esp_err_t err;
 	const char* mime;
 	struct httpd_static_template_file_handler* hndlr = req->user_ctx;
+	struct httpd_request_ctx ctx;
+	ctx.req = req;
 
 	printf("httpd: Delivering templated static content from %s\n", hndlr->path);
 
@@ -249,7 +252,7 @@ static esp_err_t static_template_file_get_handler(httpd_req_t* req) {
 		}
 	}
 
-	if((err = template_apply(hndlr->templ, hndlr->path, static_template_file_write_cb, req))) {
+	if((err = template_apply(hndlr->templ, hndlr->path, static_template_file_write_cb, &ctx))) {
 		goto fail;
 	}
 
@@ -405,7 +408,7 @@ esp_err_t httpd_add_redirect(struct httpd* httpd, char* from, char* to) {
 
 	hndlr->handler.ops = &httpd_redirect_handler_ops;
 
-	printf("httpd: Registering redirect handler at '%s' for location '%s'\n", from, to);
+	printf("httpd: Registering redirect handler at '%s' to location '%s'\n", from, to);
 
 	if((err = httpd_register_uri_handler(httpd->server, &hndlr->handler.uri_handler))) {
 		goto fail_uri_alloc;
@@ -478,12 +481,13 @@ esp_err_t __httpd_add_static_path(struct httpd* httpd, char* dir, char* name) {
 	}
 
 	if(err) {
-		struct list_head* cursor;
-		LIST_FOR_EACH(cursor, &httpd->handlers) {
+		struct list_head* cursor, *next;
+		LIST_FOR_EACH_SAFE(cursor, next, &httpd->handlers) {
 			struct httpd_handler* hndlr = LIST_GET_ENTRY(cursor, struct httpd_handler, list);
 			if(hndlr->ops->free) {
 				hndlr->ops->free(hndlr);
 			}
+			LIST_DELETE(cursor);
 		}
 	}
 
@@ -493,4 +497,176 @@ fail_alloc:
 	}
 fail:
 	return err;
+}
+
+
+#define HTTPD_HANDLER_TO_HTTPD_REQUEST_HANDER(hndlr) \
+	container_of((hndlr), struct httpd_request_handler, handler)
+
+static void httpd_free_request_handler(struct httpd_handler* hndlr) {
+	struct httpd_request_handler* hndlr_request = HTTPD_HANDLER_TO_HTTPD_REQUEST_HANDER(hndlr);
+	char** key = hndlr_request->required_keys;
+	while(*key) {
+		free(*key++);
+	}
+	free(hndlr_request->required_keys);
+	// Allthough uri_handler.uri is declared const we use it with dynamically allocated memory
+	free((char*)hndlr->uri_handler.uri);
+}
+
+struct httpd_handler_ops httpd_request_handler_ops = {
+	.free = httpd_free_request_handler,
+};
+
+static ssize_t query_string_get_param(char* query, const char* param, const char** value) {
+	esp_err_t err;
+	char* value_pos;
+	size_t param_len_curr, param_len = strlen(param), current_len;
+	char* search_pos = query;
+	while((current_len = strlen(search_pos))) {
+		value_pos = strchr(search_pos, '=');
+		if(!value_pos) {
+			err = ESP_ERR_INVALID_ARG;
+			goto fail;
+		}
+
+
+		param_len_curr = value_pos - search_pos;
+		if(param_len == param_len_curr && !strncmp(search_pos, param, param_len)) {
+			size_t value_len;
+			char* term = strchr(++value_pos, '&');
+			if(!term) {
+				term = search_pos + current_len;
+			}
+			value_len = term - value_pos;
+			if(value) {
+				*value = value_pos;
+			}
+			return value_len;
+		}
+
+		search_pos = strchr(value_pos, '&');
+		if(!search_pos) {
+			err = ESP_ERR_NOT_FOUND;
+			goto fail;
+		}
+
+		search_pos++;
+	}
+
+	err = ESP_ERR_NOT_FOUND;
+
+fail:
+	return -err;
+}
+
+ssize_t httpd_query_string_get_param(struct httpd_request_ctx* ctx, const char* param, const char** value) {
+	return query_string_get_param(ctx->query_string, param, value);
+}
+
+static esp_err_t httpd_request_handler(httpd_req_t* req) {
+	esp_err_t err;
+	size_t query_len;
+	struct httpd_request_handler* hndlr = req->user_ctx;
+	char** required_params = hndlr->required_keys;
+	struct httpd_request_ctx ctx;
+
+	ctx.req = req;
+
+	query_len = httpd_req_get_url_query_len(req) + 1;
+	ctx.query_string = calloc(1, query_len);
+	if(!ctx.query_string) {
+		err = ESP_ERR_NO_MEM;
+		goto fail;
+	}
+
+	httpd_req_get_url_query_str(req, ctx.query_string, query_len);
+
+	while(*required_params) {
+		if(query_string_get_param(ctx.query_string, *required_params, NULL) <= 0) {
+			err = httpd_set_status(&ctx, HTTPD_400);
+			goto fail_query_string_alloc;
+		}
+		required_params++;
+	}
+
+	err = hndlr->cb(&ctx, hndlr->priv);
+
+fail_query_string_alloc:
+	free(ctx.query_string);
+fail:
+	return err;
+}
+
+static esp_err_t httpd_add_handler(struct httpd* httpd, httpd_method_t method, char* path, httpd_request_cb cb, void* priv, char** required_keys, size_t num_required_keys) {
+	esp_err_t err;
+	char* uri;
+
+	struct httpd_request_handler* hndlr = calloc(1, sizeof(struct httpd_request_handler));
+	if(!hndlr) {
+		err = ESP_ERR_NO_MEM;
+		goto fail;
+	}
+
+	hndlr->cb = cb;
+	hndlr->priv = priv;
+
+	uri = strdup(path);
+	if(!uri) {
+		err = ESP_ERR_NO_MEM;
+		goto fail_hndlr_alloc;
+	}
+
+	hndlr->handler.uri_handler.handler = httpd_request_handler;
+	hndlr->handler.uri_handler.user_ctx = hndlr;
+	hndlr->handler.uri_handler.method = method;
+	hndlr->handler.uri_handler.uri = uri;
+	
+	hndlr->required_keys = calloc(num_required_keys + 1, sizeof(char*));
+	if(!hndlr->required_keys) {
+		err = ESP_ERR_NO_MEM;
+		goto fail_uri_alloc;
+	}
+
+	if(required_keys) {
+		char** key_copy = hndlr->required_keys;
+		while(num_required_keys--) {
+			*key_copy = strdup(required_keys[num_required_keys]);
+			if(!*key_copy) {
+				err = ESP_ERR_NO_MEM;
+				goto fail_keys_alloc;
+			}
+			key_copy++;
+		}
+	}
+
+	if((err = httpd_register_uri_handler(httpd->server, &hndlr->handler.uri_handler))) {
+		goto fail_keys_alloc;
+	}
+
+	return ESP_OK;
+
+
+fail_keys_alloc:
+	{
+		char** key = hndlr->required_keys;
+		while(*key) {
+			free(*key++);
+		}
+		free(hndlr->required_keys);
+	}
+fail_uri_alloc:
+	free(uri);
+fail_hndlr_alloc:
+	free(hndlr);
+fail:
+	return err;
+}
+
+esp_err_t httpd_add_get_handler(struct httpd* httpd, char* path, httpd_request_cb cb, void* priv, char** required_params, size_t num_required_params) {
+	return httpd_add_handler(httpd, HTTP_GET, path, cb, priv, required_params, num_required_params);
+}
+
+esp_err_t httpd_add_post_handler(struct httpd* httpd, char* path, httpd_request_cb cb, void* priv, char** required_params, size_t num_required_params) {
+	return httpd_add_handler(httpd, HTTP_POST, path, cb, priv, required_params, num_required_params);
 }
