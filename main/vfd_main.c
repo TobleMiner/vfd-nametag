@@ -392,6 +392,13 @@ static esp_err_t http_get_api_set_text(struct httpd_request_ctx* ctx, void* priv
 
 	printf("Query param len: %zu\n", param_len);
 
+	if((param_len = query_string_decode_value(value, param_len)) < 0) {
+		printf("Invalid url encoding\n");
+		return httpd_send_error(ctx, HTTPD_400);	
+	}
+
+	printf("Query param len decoded: %zu\n", param_len);
+
 	value[param_len] = 0;
 
 	return tag_app_set_string(app, value);

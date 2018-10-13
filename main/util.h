@@ -1,3 +1,9 @@
+#ifndef _UTIL_H_
+#define _UTIL_H_
+
+#include <stdint.h>
+#include <string.h>
+
 #define container_of(ptr, type, member) ({			\
 	const typeof(((type *)0)->member) * __mptr = (ptr);	\
 	(type *)((char *)__mptr - offsetof(type, member)); })
@@ -30,3 +36,21 @@
 
 #define DIRENT_FOR_EACH(cursor, dir) \
 	for((cursor) = readdir((dir)); (cursor); (cursor) = readdir((dir)))
+
+void strntr(char* str, size_t len, char a, char b);
+
+#define strtr(str, a, b) \
+	strntr(str, strlen(str), a, b);
+
+
+#define hex_to_nibble(hex) \
+	(((hex) >= '0' && (hex) <= '9' ? (uint8_t)((hex) - '0') : \
+		(hex) >= 'A' && (hex) <= 'F' ? (uint8_t)((hex) - 'A' + 0xA) : \
+			(hex) >= 'a' && (hex) <= 'f' ? (uint8_t)((hex) - 'a' + 0xA) : \
+				0 \
+	) & 0xF)
+
+#define hex_to_byte(hex) \
+	((hex_to_nibble((hex)[0]) << 4) | hex_to_nibble((hex)[1]))
+
+#endif

@@ -522,6 +522,30 @@ struct httpd_handler_ops httpd_request_handler_ops = {
 	.free = httpd_free_request_handler,
 };
 
+ssize_t query_string_decode_value(char* value, size_t len) {
+	char* search_pos = value, *limit = value + len;
+
+	strntr(value, len, '+', ' ');
+
+	while(search_pos < limit) {
+		if(*search_pos != '%') {
+			search_pos++;
+			continue;
+		}
+
+		if(limit - search_pos < 2) {
+			return -ESP_ERR_INVALID_ARG;
+		}
+
+		*search_pos = hex_to_byte(search_pos + 1);
+		search_pos++;
+		limit -= 2;
+		memmove(search_pos, search_pos + 2, limit - search_pos);
+	}
+
+	return limit - value;
+}
+
 static ssize_t query_string_get_param(char* query, const char* param, const char** value) {
 	esp_err_t err;
 	char* value_pos;

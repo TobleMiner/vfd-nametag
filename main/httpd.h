@@ -81,6 +81,7 @@ esp_err_t httpd_template_write(void* ctx, char* buff, size_t len);
 ssize_t httpd_query_string_get_param(struct httpd_request_ctx* ctx, const char* param, const char** value);
 esp_err_t httpd_add_handler(struct httpd* httpd, httpd_method_t method, char* path, httpd_request_cb cb, void* priv, size_t num_param, ...);
 esp_err_t httpd_send_error(struct httpd_request_ctx* ctx, const char* status);
+ssize_t query_string_decode_value(char* value, size_t len);
 
 
 #define httpd_add_static_path(httpd, path) \
