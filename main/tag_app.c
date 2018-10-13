@@ -58,6 +58,7 @@ fail:
 
 esp_err_t tag_app_set_string(struct tag_app* app, char* str) {
 	esp_err_t err = ESP_OK;
+	char* oldstr = app->display_string;
 	char* heapstr = strdup(str);
 	if(!heapstr) {
 		err = ESP_ERR_NO_MEM;
@@ -65,6 +66,7 @@ esp_err_t tag_app_set_string(struct tag_app* app, char* str) {
 	}
 
 	app->display_string = heapstr;
+	free(oldstr);
 	
 fail:
 	return err;

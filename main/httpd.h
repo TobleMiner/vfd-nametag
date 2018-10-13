@@ -78,9 +78,9 @@ esp_err_t httpd_alloc(struct httpd** retval, const char* webroot, uint16_t max_n
 esp_err_t __httpd_add_static_path(struct httpd* httpd, char* dir, char* name);
 esp_err_t httpd_add_redirect(struct httpd* httpd, char* from, char* to);
 esp_err_t httpd_template_write(void* ctx, char* buff, size_t len);
-esp_err_t httpd_add_get_handler(struct httpd* httpd, char* path, httpd_request_cb cb, void* priv, char** required_params, size_t num_required_params);
-esp_err_t httpd_add_post_handler(struct httpd* httpd, char* path, httpd_request_cb cb, void* priv, char** required_params, size_t num_required_params);
 ssize_t httpd_query_string_get_param(struct httpd_request_ctx* ctx, const char* param, const char** value);
+esp_err_t httpd_add_handler(struct httpd* httpd, httpd_method_t method, char* path, httpd_request_cb cb, void* priv, size_t num_param, ...);
+esp_err_t httpd_send_error(struct httpd_request_ctx* ctx, const char* status);
 
 
 #define httpd_add_static_path(httpd, path) \
@@ -91,5 +91,14 @@ ssize_t httpd_query_string_get_param(struct httpd_request_ctx* ctx, const char* 
 
 #define httpd_set_status(ctx, status) \
 	httpd_resp_set_status((ctx)->req, status)
+
+#define httpd_finalize_request(ctx) \
+	httpd_resp_send_chunk((ctx)->req, NULL, 0)
+
+#define httpd_add_get_handler(httpd, path, cb, priv, num_params, ...) \
+	httpd_add_handler(httpd, HTTP_GET, path, cb, priv, num_params, __VA_ARGS__);
+
+#define httpd_add_post_handler(httpd, path, cb, priv, num_params, ...) \
+	httpd_add_handler(httpd, HTTP_POST, path, cb, priv, num_params, __VA_ARGS__);
 
 #endif

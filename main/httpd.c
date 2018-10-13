@@ -4,6 +4,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdarg.h>
 
 #include "esp_err.h"
 
@@ -14,8 +15,8 @@
 #include "mime.h"
 
 static esp_err_t send_chunk_cb(void* ctx, char* buff, size_t len) {
-	httpd_req_t* req = ctx;
-	return httpd_resp_send_chunk(req, buff, len);
+	struct httpd_request_ctx* req_ctx = ctx;
+	return httpd_resp_send_chunk(req_ctx->req, buff, len);
 }
 
 static esp_err_t template_include_cb(void* ctx, void* priv, struct templ_slice* slice) {
@@ -125,7 +126,10 @@ static esp_err_t xlate_err(int err) {
 static esp_err_t static_file_get_handler(httpd_req_t* req) {
 	esp_err_t err = ESP_OK;
 	const char* mime;
+	struct httpd_request_ctx ctx;
 	struct httpd_static_file_handler* hndlr = req->user_ctx;
+
+	ctx.req = req;
 
 	printf("httpd: Delivering static content from %s\n", hndlr->path);
 
@@ -144,7 +148,7 @@ static esp_err_t static_file_get_handler(httpd_req_t* req) {
 		}
 	}
 
-	if((err = futil_read_file(req, hndlr->path, send_chunk_cb))) {
+	if((err = futil_read_file(&ctx, hndlr->path, send_chunk_cb))) {
 		goto fail;
 	}
 
@@ -564,6 +568,14 @@ ssize_t httpd_query_string_get_param(struct httpd_request_ctx* ctx, const char* 
 	return query_string_get_param(ctx->query_string, param, value);
 }
 
+esp_err_t httpd_send_error(struct httpd_request_ctx* ctx, const char* status) {
+	esp_err_t err = httpd_set_status(ctx, status);
+	httpd_finalize_request(ctx);
+	return err;
+}
+
+#define REQUEST_MISSING_PARAM "Invalid request, missing parameters"
+
 static esp_err_t httpd_request_handler(httpd_req_t* req) {
 	esp_err_t err;
 	size_t query_len;
@@ -585,6 +597,7 @@ static esp_err_t httpd_request_handler(httpd_req_t* req) {
 	while(*required_params) {
 		if(query_string_get_param(ctx.query_string, *required_params, NULL) <= 0) {
 			err = httpd_set_status(&ctx, HTTPD_400);
+			httpd_resp_send(req, REQUEST_MISSING_PARAM, strlen(REQUEST_MISSING_PARAM));
 			goto fail_query_string_alloc;
 		}
 		required_params++;
@@ -598,9 +611,10 @@ fail:
 	return err;
 }
 
-static esp_err_t httpd_add_handler(struct httpd* httpd, httpd_method_t method, char* path, httpd_request_cb cb, void* priv, char** required_keys, size_t num_required_keys) {
+esp_err_t httpd_add_handler(struct httpd* httpd, httpd_method_t method, char* path, httpd_request_cb cb, void* priv, size_t num_param, ...) {
 	esp_err_t err;
 	char* uri;
+	va_list aq;
 
 	struct httpd_request_handler* hndlr = calloc(1, sizeof(struct httpd_request_handler));
 	if(!hndlr) {
@@ -622,16 +636,18 @@ static esp_err_t httpd_add_handler(struct httpd* httpd, httpd_method_t method, c
 	hndlr->handler.uri_handler.method = method;
 	hndlr->handler.uri_handler.uri = uri;
 	
-	hndlr->required_keys = calloc(num_required_keys + 1, sizeof(char*));
+	hndlr->required_keys = calloc(num_param + 1, sizeof(char*));
 	if(!hndlr->required_keys) {
 		err = ESP_ERR_NO_MEM;
 		goto fail_uri_alloc;
 	}
 
-	if(required_keys) {
+	va_start(aq, num_param);
+	if(num_param) {
 		char** key_copy = hndlr->required_keys;
-		while(num_required_keys--) {
-			*key_copy = strdup(required_keys[num_required_keys]);
+		while(num_param--) {
+			char* param = va_arg(aq, char*);
+			*key_copy = strdup(param);
 			if(!*key_copy) {
 				err = ESP_ERR_NO_MEM;
 				goto fail_keys_alloc;
@@ -644,10 +660,13 @@ static esp_err_t httpd_add_handler(struct httpd* httpd, httpd_method_t method, c
 		goto fail_keys_alloc;
 	}
 
+	va_end(aq);
+
 	return ESP_OK;
 
 
 fail_keys_alloc:
+	va_end(aq);
 	{
 		char** key = hndlr->required_keys;
 		while(*key) {
@@ -661,12 +680,4 @@ fail_hndlr_alloc:
 	free(hndlr);
 fail:
 	return err;
-}
-
-esp_err_t httpd_add_get_handler(struct httpd* httpd, char* path, httpd_request_cb cb, void* priv, char** required_params, size_t num_required_params) {
-	return httpd_add_handler(httpd, HTTP_GET, path, cb, priv, required_params, num_required_params);
-}
-
-esp_err_t httpd_add_post_handler(struct httpd* httpd, char* path, httpd_request_cb cb, void* priv, char** required_params, size_t num_required_params) {
-	return httpd_add_handler(httpd, HTTP_POST, path, cb, priv, required_params, num_required_params);
 }

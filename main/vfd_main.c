@@ -20,6 +20,7 @@
 #include "modal_wait.h"
 #include "ip.h"
 #include "httpd.h"
+#include "tag_app.h"
 
 #include "device_vars.h"
 
@@ -371,6 +372,31 @@ static esp_err_t content_template_cb(void* ctx, void* priv, struct templ_slice* 
 	return httpd_template_write(ctx, buffer, strlen(buffer));
 }
 
+static esp_err_t http_template_badge_text(void* ctx, void* priv, struct templ_slice* slice) {
+	struct tag_app* app = priv;
+	return httpd_template_write(ctx, app->display_string, strlen(app->display_string));
+}
+
+static esp_err_t http_get_api_set_text(struct httpd_request_ctx* ctx, void* priv) {
+	ssize_t param_len;
+	char* value;
+	struct tag_app* app = priv;
+	printf("Set text called!\n");
+	
+	if((param_len = httpd_query_string_get_param(ctx, "text", &value)) <= 0) {
+		printf("Query param text not found\n");
+		return httpd_send_error(ctx, HTTPD_400);
+	}
+
+	httpd_finalize_request(ctx);
+
+	printf("Query param len: %zu\n", param_len);
+
+	value[param_len] = 0;
+
+	return tag_app_set_string(app, value);
+}
+
 void app_main()
 {
 	esp_err_t err;
@@ -395,16 +421,13 @@ void app_main()
 	ESP_ERROR_CHECK(err);
 
 	struct httpd* httpd;
-	err = httpd_alloc(&httpd, "/flash/srv/http");
+	err = httpd_alloc(&httpd, "/flash/srv/http", 256);
 	ESP_ERROR_CHECK(err);
 
 	err = httpd_add_template(httpd, "title", title_template_cb, NULL);
 	ESP_ERROR_CHECK(err);
 
 	err = httpd_add_template(httpd, "content", content_template_cb, NULL);
-	ESP_ERROR_CHECK(err);
-
-	err = httpd_add_static_path(httpd, "/flash/srv/http");
 	ESP_ERROR_CHECK(err);
 
 	err = httpd_add_redirect(httpd, "/", "/index.html");
@@ -457,7 +480,24 @@ void app_main()
 	ESP_ERROR_CHECK(err);
 
 	ui_add_element(&menu->ui_element, ui);
-	ui_set_active_element(ui, &menu->ui_element);
+
+	struct tag_app* app;
+	err = tag_app_alloc(&app, menu);
+	ESP_ERROR_CHECK(err);
+
+	ui_add_element(&app->ui_element, ui);
+	ui_set_active_element(ui, &app->ui_element);
+
+	menu_set_ui_parent(menu, &app->ui_element);
+
+	err = httpd_add_template(httpd, "badge.text", http_template_badge_text, app);
+	ESP_ERROR_CHECK(err);
+
+	err = httpd_add_get_handler(httpd, "/api/set_text", http_get_api_set_text, app, 1, "text");
+	ESP_ERROR_CHECK(err);
+
+	err = httpd_add_static_path(httpd, "/flash/srv/http");
+	ESP_ERROR_CHECK(err);
 
 	struct userio* userio;
 	err = userio_alloc(&userio);
