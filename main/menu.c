@@ -185,6 +185,10 @@ esp_err_t menu_ascend(struct menu_state* state) {
 		return menu->leave_cb(menu->leave_cb_priv);
 	}
 
+	if(menu->ui_parent) {
+		ui_set_active_element(menu->ui, menu->ui_parent);
+	}
+
 	return ESP_OK;
 }
 

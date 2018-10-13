@@ -66,6 +66,7 @@ struct menu {
 	void* leave_cb_priv;
 
 	struct ui* ui;
+	struct ui_element* ui_parent;
 
 	struct menu_entry* root;
 	struct datastore* ds_volatile;
@@ -79,6 +80,7 @@ struct menu {
 #define menu_current_name(state) (menu_entry_name(menu_current_entry(state)))
 #define menu_can_descend(state) (!!(state)->current_entry->entries)
 #define menu_can_ascend(state) (!!(state)->current_entry->parent->name)
+#define menu_set_ui_parent(menu, prnt) (menu)->ui_parent = (prnt)
 
 esp_err_t menu_alloc(struct menu** retval, struct ui* ui, struct menu_entry* root, struct datastore* ds_volatile, struct datastore* ds_persistent, menu_leave_cb leave_cb, void* priv);
 struct datastore* menu_get_datastore(struct menu* menu, struct menu_entry* entry);
