@@ -18,6 +18,7 @@ set(COMPONENT_SRCS	"hcs_12SS59t.c"
 			"template.c"
 			"magic.c"
 			"util.c"
+			"kvparser.c"
 			"vfd_main.c")
 
 set(COMPONENT_ADD_INCLUDEDIRS ".")

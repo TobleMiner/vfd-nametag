@@ -53,6 +53,45 @@ fail:
 	return err;
 }
 
+static ssize_t query_string_decode_value(char* value, size_t len) {
+	char* search_pos = value, *limit = value + len;
+
+	strntr(value, len, '+', ' ');
+
+	while(search_pos < limit) {
+		if(*search_pos != '%') {
+			search_pos++;
+			continue;
+		}
+
+		if(limit - search_pos < 2) {
+			return -ESP_ERR_INVALID_ARG;
+		}
+
+		*search_pos = hex_to_byte(search_pos + 1);
+		search_pos++;
+		limit -= 2;
+		memmove(search_pos, search_pos + 2, limit - search_pos);
+	}
+
+	return limit - value;
+}
+
+static ssize_t query_string_decode_callback(char** retval, char* str, size_t len) {
+	ssize_t proc_len = query_string_decode_value(str, len);
+	if(proc_len < 0) {
+		return proc_len;
+	}
+	str[proc_len] = 0;
+	*retval = str;
+	return proc_len;
+}
+
+struct kv_str_processor_def httpd_param_str_proc = {
+	.cb = query_string_decode_callback,
+	.flags = { 0 },
+};
+
 esp_err_t httpd_alloc(struct httpd** retval, const char* webroot, uint16_t max_num_handlers) {
 	esp_err_t err;
 	struct httpd* httpd;
@@ -86,13 +125,19 @@ esp_err_t httpd_alloc(struct httpd** retval, const char* webroot, uint16_t max_n
 		goto fail_webroot_alloc;
 	}
 
-	if((err = httpd_start(&httpd->server, &conf))) {
+	if((err = kvparser_init_processors(&httpd->uri_kv_parser, "&", "=", &httpd_param_str_proc, &httpd_param_str_proc))) {
 		goto fail_templates_alloc;
+	}
+
+	if((err = httpd_start(&httpd->server, &conf))) {
+		goto fail_kvparser_alloc;
 	}
 
 	*retval = httpd;
 	return ESP_OK;
 
+fail_kvparser_alloc:
+	kvparser_free(&httpd->uri_kv_parser);
 fail_templates_alloc:
 	template_free_templates(&httpd->templates);
 fail_webroot_alloc:
@@ -123,13 +168,19 @@ static esp_err_t xlate_err(int err) {
 	return ESP_FAIL;
 }
 
+static void httpd_request_ctx_init(struct httpd_request_ctx* ctx, httpd_req_t* req) {
+	INIT_LIST_HEAD(ctx->form_data);
+	INIT_LIST_HEAD(ctx->query_params);
+	ctx->req = req;
+}
+
 static esp_err_t static_file_get_handler(httpd_req_t* req) {
 	esp_err_t err = ESP_OK;
 	const char* mime;
 	struct httpd_request_ctx ctx;
 	struct httpd_static_file_handler* hndlr = req->user_ctx;
 
-	ctx.req = req;
+	httpd_request_ctx_init(&ctx, req);
 
 	printf("httpd: Delivering static content from %s\n", hndlr->path);
 
@@ -246,6 +297,8 @@ static esp_err_t static_template_file_get_handler(httpd_req_t* req) {
 	struct httpd_request_ctx ctx;
 	ctx.req = req;
 
+	httpd_request_ctx_init(&ctx, req);
+
 	printf("httpd: Delivering templated static content from %s\n", hndlr->path);
 
 	mime = mime_get_type_from_filename(hndlr->path);
@@ -257,6 +310,7 @@ static esp_err_t static_template_file_get_handler(httpd_req_t* req) {
 	}
 
 	if((err = template_apply(hndlr->templ, hndlr->path, static_template_file_write_cb, &ctx))) {
+		printf("Failed to apply template: %d\n", err);
 		goto fail;
 	}
 
@@ -522,115 +576,74 @@ struct httpd_handler_ops httpd_request_handler_ops = {
 	.free = httpd_free_request_handler,
 };
 
-ssize_t query_string_decode_value(char* value, size_t len) {
-	char* search_pos = value, *limit = value + len;
-
-	strntr(value, len, '+', ' ');
-
-	while(search_pos < limit) {
-		if(*search_pos != '%') {
-			search_pos++;
-			continue;
-		}
-
-		if(limit - search_pos < 2) {
-			return -ESP_ERR_INVALID_ARG;
-		}
-
-		*search_pos = hex_to_byte(search_pos + 1);
-		search_pos++;
-		limit -= 2;
-		memmove(search_pos, search_pos + 2, limit - search_pos);
-	}
-
-	return limit - value;
-}
-
-static ssize_t query_string_get_param(char* query, const char* param, const char** value) {
-	esp_err_t err;
-	char* value_pos;
-	size_t param_len_curr, param_len = strlen(param), current_len;
-	char* search_pos = query;
-	while((current_len = strlen(search_pos))) {
-		value_pos = strchr(search_pos, '=');
-		if(!value_pos) {
-			err = ESP_ERR_INVALID_ARG;
-			goto fail;
-		}
-
-
-		param_len_curr = value_pos - search_pos;
-		if(param_len == param_len_curr && !strncmp(search_pos, param, param_len)) {
-			size_t value_len;
-			char* term = strchr(++value_pos, '&');
-			if(!term) {
-				term = search_pos + current_len;
-			}
-			value_len = term - value_pos;
-			if(value) {
-				*value = value_pos;
-			}
-			return value_len;
-		}
-
-		search_pos = strchr(value_pos, '&');
-		if(!search_pos) {
-			err = ESP_ERR_NOT_FOUND;
-			goto fail;
-		}
-
-		search_pos++;
-	}
-
-	err = ESP_ERR_NOT_FOUND;
-
-fail:
-	return -err;
-}
-
-ssize_t httpd_query_string_get_param(struct httpd_request_ctx* ctx, const char* param, const char** value) {
-	return query_string_get_param(ctx->query_string, param, value);
-}
-
-esp_err_t httpd_send_error(struct httpd_request_ctx* ctx, const char* status) {
+esp_err_t httpd_send_error_msg(struct httpd_request_ctx* ctx, const char* status, char* msg) {
 	esp_err_t err = httpd_set_status(ctx, status);
+	if(msg) {
+		httpd_template_write(ctx, msg, strlen(msg));
+	}
 	httpd_finalize_request(ctx);
 	return err;
 }
 
+esp_err_t httpd_send_error(struct httpd_request_ctx* ctx, const char* status) {
+	return httpd_send_error_msg(ctx, status, NULL);
+}
+
+#define REQUEST_MALFORMED_PARAM "Invalid request, malformed query parameters"
 #define REQUEST_MISSING_PARAM "Invalid request, missing parameters"
+
+/*
+static esp_err_t httpd_parse_form_data(struct httpd_request_ctx* ctx) {
+	
+}
+*/
 
 static esp_err_t httpd_request_handler(httpd_req_t* req) {
 	esp_err_t err;
 	size_t query_len;
 	struct httpd_request_handler* hndlr = req->user_ctx;
+	char* query_string;
 	char** required_params = hndlr->required_keys;
 	struct httpd_request_ctx ctx;
+
+	httpd_request_ctx_init(&ctx, req);
 
 	ctx.req = req;
 
 	query_len = httpd_req_get_url_query_len(req) + 1;
-	ctx.query_string = calloc(1, query_len);
-	if(!ctx.query_string) {
+	query_string = calloc(1, query_len);
+	if(!query_string) {
 		err = ESP_ERR_NO_MEM;
 		goto fail;
 	}
 
-	httpd_req_get_url_query_str(req, ctx.query_string, query_len);
+	httpd_req_get_url_query_str(req, query_string, query_len);
+
+	if((err = kvparser_parse_string(&hndlr->httpd->uri_kv_parser, &ctx.query_params, query_string, query_len))) {
+		httpd_send_error_msg(&ctx, HTTPD_400, REQUEST_MALFORMED_PARAM);
+		goto fail_query_string_alloc;
+	}
 
 	while(*required_params) {
-		if(query_string_get_param(ctx.query_string, *required_params, NULL) <= 0) {
-			err = httpd_set_status(&ctx, HTTPD_400);
-			httpd_resp_send(req, REQUEST_MISSING_PARAM, strlen(REQUEST_MISSING_PARAM));
-			goto fail_query_string_alloc;
+		if(!kvparser_find_pair(&ctx.query_params, *required_params)) {
+			err = httpd_send_error_msg(&ctx, HTTPD_400, REQUEST_MISSING_PARAM);
+			goto fail_query_params_alloc;
 		}
 		required_params++;
 	}
 
 	err = hndlr->cb(&ctx, hndlr->priv);
 
+fail_query_params_alloc:
+	{
+		kvlist* cursor, *next;
+		LIST_FOR_EACH_SAFE(cursor, next, &ctx.query_params) {
+			struct kvpair* pair = LIST_GET_ENTRY(cursor, struct kvpair, list);
+			kvparser_free_kvpair(&hndlr->httpd->uri_kv_parser, pair);
+		}
+	}
 fail_query_string_alloc:
-	free(ctx.query_string);
+	free(query_string);
 fail:
 	return err;
 }
@@ -646,6 +659,7 @@ esp_err_t httpd_add_handler(struct httpd* httpd, httpd_method_t method, char* pa
 		goto fail;
 	}
 
+	hndlr->httpd = httpd;
 	hndlr->cb = cb;
 	hndlr->priv = priv;
 
@@ -704,4 +718,13 @@ fail_hndlr_alloc:
 	free(hndlr);
 fail:
 	return err;
+}
+
+ssize_t httpd_query_string_get_param(struct httpd_request_ctx* ctx, const char* param, char** value) {
+	struct kvpair* pair = kvparser_find_pair(&ctx->query_params, param);
+	if(!pair) {
+		return -ESP_ERR_NOT_FOUND;
+	}
+	*value = pair->value;
+	return pair->value_len;
 }

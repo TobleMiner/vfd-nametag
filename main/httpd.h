@@ -8,6 +8,7 @@
 #include "list.h"
 #include "template.h"
 #include "magic.h"
+#include "kvparser.h"
 
 #ifndef HTTPD_302
 #define HTTPD_302 "302 Found"
@@ -20,6 +21,8 @@ struct httpd {
 	struct list_head handlers;
 
 	struct templ templates;
+
+	struct kvparser uri_kv_parser;
 };
 
 struct httpd_handler;
@@ -55,16 +58,28 @@ struct httpd_redirect_handler {
 	char* location;	
 };
 
-struct httpd_request_handler;
+typedef uint8_t httpd_request_ctx_flags;
+
+struct httpd_request_ctx_form_entry {
+	char* key;
+	char* value;
+};
 
 struct httpd_request_ctx {
+	struct list_head form_data;
 	httpd_req_t* req;
-	char* query_string;
+
+	kvlist query_params;
+
+	struct {
+		httpd_request_ctx_flags has_form_data:1;
+	} flags;
 };
 
 typedef esp_err_t (*httpd_request_cb)(struct httpd_request_ctx* ctx, void* priv);
 
 struct httpd_request_handler {
+	struct httpd* httpd;
 	struct httpd_handler handler;
 	char** required_keys;
 	void* priv;
@@ -78,10 +93,9 @@ esp_err_t httpd_alloc(struct httpd** retval, const char* webroot, uint16_t max_n
 esp_err_t __httpd_add_static_path(struct httpd* httpd, char* dir, char* name);
 esp_err_t httpd_add_redirect(struct httpd* httpd, char* from, char* to);
 esp_err_t httpd_template_write(void* ctx, char* buff, size_t len);
-ssize_t httpd_query_string_get_param(struct httpd_request_ctx* ctx, const char* param, const char** value);
+ssize_t httpd_query_string_get_param(struct httpd_request_ctx* ctx, const char* param, char** value);
 esp_err_t httpd_add_handler(struct httpd* httpd, httpd_method_t method, char* path, httpd_request_cb cb, void* priv, size_t num_param, ...);
 esp_err_t httpd_send_error(struct httpd_request_ctx* ctx, const char* status);
-ssize_t query_string_decode_value(char* value, size_t len);
 
 
 #define httpd_add_static_path(httpd, path) \

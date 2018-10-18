@@ -23,13 +23,18 @@ struct list_head {
 #define LIST_GET_ENTRY(list, type, member) \
 	container_of(list, type, member)
 
+static inline void _list_append(struct list_head* prev, struct list_head* next, struct list_head* entry) {
+	entry->prev = prev;
+	entry->next = next;
+	prev->next = entry;
+	next->prev = entry;
+}
+
 #define LIST_APPEND(entry, list) \
-	do { \
-		(list)->next->prev = (entry); \
-		(entry)->next = (list)->next; \
-		(entry)->prev = (list); \
-		(list)->next = (entry); \
-	} while(0)
+	_list_append(list, (list)->next, entry)
+
+#define LIST_APPEND_TAIL(entry, list) \
+	_list_append((list)->prev, list, entry)
 
 #define LIST_DELETE(entry) \
 	do { \
@@ -37,6 +42,19 @@ struct list_head {
 		(entry)->next->prev = (entry)->prev; \
 		(entry)->prev = (entry); \
 		(entry)->next = (entry); \
+	} while(0)
+
+#define LIST_IS_EMPTY(list) \
+	((list)->next == (list))
+
+#define LIST_SPLICE(sublist, parent) \
+	do { \
+		if(!LIST_IS_EMPTY(sublist)) { \
+			(sublist)->prev->next = (parent)->next; \
+			(sublist)->next->prev = (parent); \
+			(parent)->next->prev = (sublist)->next; \
+			(parent)->next = (sublist)->next; \
+		} \
 	} while(0)
 
 inline size_t LIST_LENGTH(struct list_head* list) {
