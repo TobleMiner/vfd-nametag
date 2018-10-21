@@ -203,13 +203,13 @@ fail:
 }
 
 void kvparser_free_kvpair(struct kvparser* parser, struct kvpair* pair) {
-		if(parser->key_processor->flags.dyn_alloc && pair->key) {
-			free(pair->key);
-		}
-		if(parser->value_processor->flags.dyn_alloc && pair->value) {
-			free(pair->value);
-		}
-		free(pair);
+	if(parser->key_processor->flags.dyn_alloc && pair->key) {
+		free(pair->key);
+	}
+	if(parser->value_processor->flags.dyn_alloc && pair->value) {
+		free(pair->value);
+	}
+	free(pair);
 }
 
 void kvparser_free(struct kvparser* parser) {
